@@ -1,4 +1,6 @@
+using System;
 using Loupedeck;
+using ShellyLoupedeckPlugin.UI;
 
 namespace ShellyLoupedeckPlugin.Commands
 {
@@ -25,9 +27,29 @@ namespace ShellyLoupedeckPlugin.Commands
 
         protected override void RunCommand(string actionParameter)
         {
-            // This will open a simple dialog for settings
-            // For now, users will need to configure settings via the plugin settings file
-            // In a full implementation, you would show a custom UI dialog here
+            // Get current settings
+            var currentServerUrl = "";
+            var currentAuthKey = "";
+
+            if (_plugin.TryGetPluginSetting("ServerUrl", out var serverUrl))
+            {
+                currentServerUrl = serverUrl;
+            }
+
+            if (_plugin.TryGetPluginSetting("AuthKey", out var authKey))
+            {
+                currentAuthKey = authKey;
+            }
+
+            // Open settings dialog
+            var dialog = new SettingsDialog(currentServerUrl, currentAuthKey);
+            dialog.ShowDialog();
+
+            // Save settings if user clicked Save
+            if (dialog.SaveClicked)
+            {
+                _plugin.SaveConfiguration(dialog.ServerUrl, dialog.AuthKey);
+            }
         }
 
         protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
