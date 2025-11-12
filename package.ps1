@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-dotnet build -c Release
+dotnet build -c Release -p:Platform=x64
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
