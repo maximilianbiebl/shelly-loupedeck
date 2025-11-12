@@ -65,14 +65,14 @@ Copy-Item "LoupedeckPackage.yaml" -Destination $packageDir
 Copy-Item "metadata\Icon16x16.png" -Destination "$packageDir\metadata"
 Copy-Item "metadata\Icon256x256.png" -Destination "$packageDir\metadata"
 
-# Copy configuration files to win directory (where the plugin DLL is)
+# Copy configuration files to PLUGIN ROOT directory (not win subdirectory)
 if (Test-Path "$buildOutput\PluginConfiguration.xml") {
-    Write-Host "  Copying PluginConfiguration.xml..." -ForegroundColor Gray
-    Copy-Item "$buildOutput\PluginConfiguration.xml" -Destination $winDir
+    Write-Host "  Copying PluginConfiguration.xml to plugin root..." -ForegroundColor Gray
+    Copy-Item "$buildOutput\PluginConfiguration.xml" -Destination $packageDir
 }
 if (Test-Path "$buildOutput\PluginConfiguration.json") {
-    Write-Host "  Copying PluginConfiguration.json..." -ForegroundColor Gray
-    Copy-Item "$buildOutput\PluginConfiguration.json" -Destination $winDir
+    Write-Host "  Copying PluginConfiguration.json to plugin root..." -ForegroundColor Gray
+    Copy-Item "$buildOutput\PluginConfiguration.json" -Destination $packageDir
 }
 
 # Create .lplug4 package (ZIP file)
