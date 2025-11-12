@@ -51,3 +51,6 @@ TestResult.xml
 ## Loupedeck Plugin Build Output
 win/
 mac/
+package/
+*.lplug4
+*.lplug5

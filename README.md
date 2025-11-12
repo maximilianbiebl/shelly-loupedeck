@@ -22,40 +22,68 @@ Ein Loupedeck Plugin zur Steuerung von Shelly Smart Home Geräten über die Shel
 
 ## Installation
 
-### Voraussetzungen
+### ⚡ Schnellinstallation (Empfohlen)
+
+**Für Nutzer - Fertig gepacktes Plugin:**
+
+1. **Plugin bauen und packen:**
+   ```powershell
+   git clone https://github.com/maximilianbiebl/shelly-loupedeck.git
+   cd shelly-loupedeck
+   .\package.ps1
+   ```
+
+2. **Plugin installieren:**
+   - Doppelklick auf `ShellyCloudControl.lplug4`
+   - ODER: Drag & Drop in Loupedeck Software
+   - ODER: Loupedeck → Einstellungen → Plugins → Install Plugin from File
+
+3. **Fertig!** Das Plugin ist installiert.
+
+Siehe **[PACKAGE_INSTALL.md](PACKAGE_INSTALL.md)** für Details.
+
+---
+
+### 🔧 Entwickler-Installation
+
+**Für Entwickler - Manuell aus Source:**
+
+#### Voraussetzungen
 - Loupedeck Software (Version 6.0 oder höher)
 - .NET 8.0 SDK
 - Visual Studio 2022 oder JetBrains Rider
 - Shelly Cloud Account mit API Key
 
-### Shelly Cloud API Key erhalten
+#### Kompilieren
 
-1. Öffne die Shelly Cloud App auf deinem Smartphone
-2. Gehe zu **Einstellungen** → **Benutzereinstellungen**
-3. Finde den **Authorization Cloud Key**
-4. Notiere auch die **Server URL** (z.B. `https://shelly-28-eu.shelly.cloud`)
-
-### Plugin kompilieren
-
-```bash
+```powershell
 # Repository klonen
 git clone https://github.com/maximilianbiebl/shelly-loupedeck.git
 cd shelly-loupedeck
 
 # Projekt bauen
 dotnet build -c Release
-
-# Output findest du in:
-# bin/Release/net8.0-windows/
 ```
 
-### Plugin installieren
+#### Manuelle Installation
 
 1. Loupedeck Software schließen
 2. Plugin-Dateien kopieren nach:
-   - Windows: `%LocalAppData%\Loupedeck\Plugins\ShellyLoupedeckPlugin\`
+   ```
+   %LocalAppData%\Loupedeck\Plugins\ShellyCloudControl\
+   ```
 3. Loupedeck Software starten
-4. Plugin sollte automatisch geladen werden
+
+Siehe **[INSTALLATION.md](INSTALLATION.md)** für Details.
+
+---
+
+### 📋 Shelly Cloud API Key erhalten
+
+1. Öffne die Shelly Cloud App auf deinem Smartphone
+2. Gehe zu **Einstellungen** → **Benutzereinstellungen**
+3. Finde den **Authorization Cloud Key**
+4. Notiere auch die **Server URL** (z.B. `https://shelly-28-eu.shelly.cloud`)
 
 ## Konfiguration
 
@@ -70,7 +98,7 @@ Da das Plugin aktuell keine grafische Settings-UI hat, musst du die Zugangsdaten
    - **Auth Key**: Dein Authorization Cloud Key
 
 Alternativ kannst du die Datei direkt bearbeiten:
-- Windows: `%LocalAppData%\Loupedeck\PluginData\ShellyLoupedeckPlugin\settings.json`
+- Windows: `%LocalAppData%\Loupedeck\PluginData\ShellyCloudControl\settings.json`
 
 ```json
 {
