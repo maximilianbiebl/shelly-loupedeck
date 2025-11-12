@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginConfiguration>
+  <PluginId>ShellyCloudControl</PluginId>
+  <DisplayName>Shelly Cloud Control</DisplayName>
+  <Description>Control Shelly smart home devices via Loupedeck</Description>
+  <Version>1.0.0</Version>
+  <Author>Shelly Loupedeck Plugin</Author>
+  <SupportedDevices>
+    <Device>LoupedeckLive</Device>
+    <Device>LoupedeckLiveS</Device>
+    <Device>RazerStreamController</Device>
+    <Device>RazerStreamControllerX</Device>
+  </SupportedDevices>
+</PluginConfiguration>

@@ -65,6 +65,16 @@ Copy-Item "LoupedeckPackage.yaml" -Destination $packageDir
 Copy-Item "metadata\Icon16x16.png" -Destination "$packageDir\metadata"
 Copy-Item "metadata\Icon256x256.png" -Destination "$packageDir\metadata"
 
+# Copy configuration files to win directory (where the plugin DLL is)
+if (Test-Path "$buildOutput\PluginConfiguration.xml") {
+    Write-Host "  Copying PluginConfiguration.xml..." -ForegroundColor Gray
+    Copy-Item "$buildOutput\PluginConfiguration.xml" -Destination $winDir
+}
+if (Test-Path "$buildOutput\PluginConfiguration.json") {
+    Write-Host "  Copying PluginConfiguration.json..." -ForegroundColor Gray
+    Copy-Item "$buildOutput\PluginConfiguration.json" -Destination $winDir
+}
+
 # Create .lplug4 package (ZIP file)
 Write-Host "Creating .lplug4 package..." -ForegroundColor Yellow
 $pluginName = "ShellyCloudControl.lplug4"
