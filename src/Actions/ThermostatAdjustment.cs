@@ -5,10 +5,10 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class ThermostatAdjustment : PluginDynamicAdjustment
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
     private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
 
-    public ThermostatAdjustment()
+    public ThermostatAdjustment() : base(true)
     {
         DisplayName = "Thermostat Temperature";
         Description = "Adjust target temperature of thermostats";
@@ -44,7 +44,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
         // Add individual Thermostat devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.Thermostat)
+            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -53,7 +53,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
         // Add Thermostat groups
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.Thermostat)
+            if (group.Type == ShellyDeviceType.Thermostat)
             {
                 AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
             }
@@ -66,7 +66,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.Thermostat &&
+            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat &&
                 device.Status?.Thermostats != null &&
                 device.Status.Thermostats.Count > 0)
             {
@@ -177,7 +177,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(temperature, BitmapColor.White, imageSize.Height / 2 + 10, null, 20);
+        builder.DrawText(temperature, BitmapColor.White, 40, null, 20);
 
         return builder.ToImage();
     }

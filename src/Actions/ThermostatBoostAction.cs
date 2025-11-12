@@ -5,7 +5,7 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class ThermostatBoostAction : PluginDynamicCommand
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
 
     public ThermostatBoostAction()
     {
@@ -42,7 +42,7 @@ public class ThermostatBoostAction : PluginDynamicCommand
         // Add individual Thermostat devices with different boost durations
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.Thermostat)
+            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat)
             {
                 AddParameter($"{device.Id}_30", $"{device.Name} - 30min", device.Name);
                 AddParameter($"{device.Id}_60", $"{device.Name} - 60min", device.Name);
@@ -53,7 +53,7 @@ public class ThermostatBoostAction : PluginDynamicCommand
         // Add Thermostat groups
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.Thermostat)
+            if (group.Type == ShellyDeviceType.Thermostat)
             {
                 AddParameter($"group_{group.Id}_30", $"[Group] {group.Name} - 30min", group.Name);
                 AddParameter($"group_{group.Id}_60", $"[Group] {group.Name} - 60min", group.Name);

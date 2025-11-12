@@ -14,13 +14,13 @@ public class DeviceGroup
     public List<string> DeviceIds { get; set; } = new List<string>();
 
     [JsonProperty("type")]
-    public DeviceType Type { get; set; }
+    public ShellyDeviceType Type { get; set; }
 
     public DeviceGroup()
     {
     }
 
-    public DeviceGroup(string name, DeviceType type)
+    public DeviceGroup(string name, ShellyDeviceType type)
     {
         Name = name;
         Type = type;

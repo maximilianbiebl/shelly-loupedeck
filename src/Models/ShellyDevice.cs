@@ -25,20 +25,20 @@ public class ShellyDevice
     [JsonProperty("settings")]
     public DeviceSettings? Settings { get; set; }
 
-    public DeviceType GetDeviceType()
+    public ShellyDeviceType GetDeviceType()
     {
         if (Type.Contains("RGBW2", StringComparison.OrdinalIgnoreCase) || App == "RGBW")
-            return DeviceType.RGBW;
+            return ShellyDeviceType.RGBW;
         if (Type.Contains("Dimmer", StringComparison.OrdinalIgnoreCase))
-            return DeviceType.Dimmer;
+            return ShellyDeviceType.Dimmer;
         if (Type.Contains("TRV", StringComparison.OrdinalIgnoreCase) || Type.Contains("Thermostat", StringComparison.OrdinalIgnoreCase))
-            return DeviceType.Thermostat;
+            return ShellyDeviceType.Thermostat;
         if (Type.Contains("SNSW", StringComparison.OrdinalIgnoreCase) || Type.Contains("Plus 2PM", StringComparison.OrdinalIgnoreCase))
-            return DeviceType.ShellyPlus2PM;
+            return ShellyDeviceType.ShellyPlus2PM;
         if (Type.Contains("Relay", StringComparison.OrdinalIgnoreCase) || Type.Contains("Switch", StringComparison.OrdinalIgnoreCase))
-            return DeviceType.Switch;
+            return ShellyDeviceType.Switch;
 
-        return DeviceType.Unknown;
+        return ShellyDeviceType.Unknown;
     }
 }
 
@@ -174,7 +174,7 @@ public class CurrentTemperature
     public bool IsValid { get; set; }
 }
 
-public enum DeviceType
+public enum ShellyDeviceType
 {
     Unknown,
     Switch,

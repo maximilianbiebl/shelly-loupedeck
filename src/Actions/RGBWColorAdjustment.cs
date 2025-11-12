@@ -5,7 +5,7 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class RGBWColorAdjustment : PluginDynamicCommand
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
     private Dictionary<string, (int R, int G, int B, int W)> _presetColors = new Dictionary<string, (int, int, int, int)>
     {
         { "red", (255, 0, 0, 0) },
@@ -54,7 +54,7 @@ public class RGBWColorAdjustment : PluginDynamicCommand
         // Add color presets for each device
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.RGBW)
+            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW)
             {
                 foreach (var color in _presetColors)
                 {
@@ -66,7 +66,7 @@ public class RGBWColorAdjustment : PluginDynamicCommand
         // Add color presets for each group
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.RGBW)
+            if (group.Type == ShellyDeviceType.RGBW)
             {
                 foreach (var color in _presetColors)
                 {

@@ -5,10 +5,10 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
     private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
 
-    public RGBWBrightnessAdjustment()
+    public RGBWBrightnessAdjustment() : base(true)
     {
         DisplayName = "RGBW Brightness";
         Description = "Adjust brightness of RGBW bulbs";
@@ -44,7 +44,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
         // Add individual RGBW devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.RGBW)
+            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -53,7 +53,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
         // Add RGBW groups
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.RGBW)
+            if (group.Type == ShellyDeviceType.RGBW)
             {
                 AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
             }
@@ -66,7 +66,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.RGBW &&
+            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW &&
                 device.Status?.Lights != null &&
                 device.Status.Lights.Count > 0)
             {
@@ -173,7 +173,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(brightness, BitmapColor.White, imageSize.Height / 2 + 10, null, 20);
+        builder.DrawText(brightness, BitmapColor.White, 40, null, 20);
 
         return builder.ToImage();
     }

@@ -8,7 +8,7 @@ namespace ShellyLoupedeckPlugin.Actions;
 /// </summary>
 public class DeviceOverviewCommand : PluginDynamicCommand
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
     private bool _isOverviewActive = false;
 
     public DeviceOverviewCommand()
@@ -83,23 +83,23 @@ public class DeviceOverviewCommand : PluginDynamicCommand
 
             case "switches":
                 var switchCount = _plugin.Devices.Count(d =>
-                    d.GetDeviceType() == DeviceType.Switch ||
-                    d.GetDeviceType() == DeviceType.ShellyPlus2PM);
+                    d.GetShellyDeviceType() == ShellyDeviceType.Switch ||
+                    d.GetShellyDeviceType() == ShellyDeviceType.ShellyPlus2PM);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Switches\n({switchCount})", BitmapColor.White);
                 break;
 
             case "lights":
                 var lightCount = _plugin.Devices.Count(d =>
-                    d.GetDeviceType() == DeviceType.RGBW ||
-                    d.GetDeviceType() == DeviceType.Dimmer);
+                    d.GetShellyDeviceType() == ShellyDeviceType.RGBW ||
+                    d.GetShellyDeviceType() == ShellyDeviceType.Dimmer);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Lights\n({lightCount})", BitmapColor.White);
                 break;
 
             case "thermostats":
                 var thermostatCount = _plugin.Devices.Count(d =>
-                    d.GetDeviceType() == DeviceType.Thermostat);
+                    d.GetShellyDeviceType() == ShellyDeviceType.Thermostat);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Thermostats\n({thermostatCount})", BitmapColor.White);
                 break;

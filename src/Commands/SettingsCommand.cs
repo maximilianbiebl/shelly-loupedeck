@@ -4,7 +4,7 @@ namespace ShellyLoupedeckPlugin.Commands;
 
 public class SettingsCommand : PluginDynamicCommand
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
 
     public SettingsCommand()
     {

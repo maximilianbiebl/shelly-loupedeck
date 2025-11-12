@@ -5,10 +5,10 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class DimmerAdjustment : PluginDynamicAdjustment
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
     private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
 
-    public DimmerAdjustment()
+    public DimmerAdjustment() : base(true)
     {
         DisplayName = "Dimmer Brightness";
         Description = "Adjust brightness of Shelly Dimmers";
@@ -44,7 +44,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         // Add individual Dimmer devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.Dimmer)
+            if (device.GetShellyDeviceType() == ShellyDeviceType.Dimmer)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -53,7 +53,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         // Add Dimmer groups
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.Dimmer)
+            if (group.Type == ShellyDeviceType.Dimmer)
             {
                 AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
             }
@@ -66,7 +66,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetDeviceType() == DeviceType.Dimmer &&
+            if (device.GetShellyDeviceType() == ShellyDeviceType.Dimmer &&
                 device.Status?.Lights != null &&
                 device.Status.Lights.Count > 0)
             {
@@ -173,7 +173,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(brightness, BitmapColor.White, imageSize.Height / 2 + 10, null, 20);
+        builder.DrawText(brightness, BitmapColor.White, 40, null, 20);
 
         return builder.ToImage();
     }

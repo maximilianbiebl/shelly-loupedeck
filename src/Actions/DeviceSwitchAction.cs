@@ -5,7 +5,7 @@ namespace ShellyLoupedeckPlugin.Actions;
 
 public class DeviceSwitchAction : PluginDynamicCommand
 {
-    private ShellyLoupedeckPlugin _plugin;
+    private ShellyLoupedeckPlugin _plugin = null!;
 
     public DeviceSwitchAction()
     {
@@ -44,10 +44,10 @@ public class DeviceSwitchAction : PluginDynamicCommand
         // Add individual devices
         foreach (var device in _plugin.Devices)
         {
-            var deviceType = device.GetDeviceType();
-            if (deviceType == DeviceType.Switch ||
-                deviceType == DeviceType.ShellyPlus2PM ||
-                deviceType == DeviceType.RGBW)
+            var deviceType = device.GetShellyDeviceType();
+            if (deviceType == ShellyDeviceType.Switch ||
+                deviceType == ShellyDeviceType.ShellyPlus2PM ||
+                deviceType == ShellyDeviceType.RGBW)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -56,9 +56,9 @@ public class DeviceSwitchAction : PluginDynamicCommand
         // Add groups
         foreach (var group in _plugin.Groups)
         {
-            if (group.Type == DeviceType.Switch ||
-                group.Type == DeviceType.ShellyPlus2PM ||
-                group.Type == DeviceType.RGBW)
+            if (group.Type == ShellyDeviceType.Switch ||
+                group.Type == ShellyDeviceType.ShellyPlus2PM ||
+                group.Type == ShellyDeviceType.RGBW)
             {
                 AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
             }
