@@ -13,7 +13,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private bool _isOverviewActive = false;
 
-        public DeviceOverviewCommand()
+        public DeviceOverviewCommand() : base()
         {
             DisplayName = "Device Overview";
             Description = "Show all Shelly devices in a grid view";

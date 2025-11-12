@@ -6,7 +6,7 @@ namespace ShellyLoupedeckPlugin.Commands
     {
         private ShellyLoupedeckPlugin _plugin;
 
-        public SettingsCommand()
+        public SettingsCommand() : base()
         {
             DisplayName = "Shelly Settings";
             Description = "Configure Shelly Cloud API connection";

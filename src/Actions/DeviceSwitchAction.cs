@@ -10,7 +10,7 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
 
-        public DeviceSwitchAction()
+        public DeviceSwitchAction() : base()
         {
             DisplayName = "Device Switch";
             Description = "Toggle Shelly devices on/off";

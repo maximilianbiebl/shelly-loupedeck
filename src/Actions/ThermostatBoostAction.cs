@@ -10,7 +10,7 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
 
-        public ThermostatBoostAction()
+        public ThermostatBoostAction() : base()
         {
             DisplayName = "Thermostat Boost";
             Description = "Activate boost mode on thermostats";

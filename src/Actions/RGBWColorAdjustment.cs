@@ -23,7 +23,7 @@ namespace ShellyLoupedeckPlugin.Actions
             { "cool_white", (200, 220, 255, 100) }
         };
 
-        public RGBWColorAdjustment()
+        public RGBWColorAdjustment() : base()
         {
             DisplayName = "RGBW Color";
             Description = "Set color of RGBW bulbs";

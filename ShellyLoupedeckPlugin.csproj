@@ -3,9 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <Platforms>x64</Platforms>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>7.3</LangVersion>
 
     <!-- Assembly Information -->
     <AssemblyName>ShellyLoupedeckPlugin</AssemblyName>

@@ -50,7 +50,7 @@ Siehe **[PACKAGE_INSTALL.md](PACKAGE_INSTALL.md)** für Details.
 
 #### Voraussetzungen
 - Loupedeck Software (Version 6.0 oder höher)
-- .NET 8.0 SDK
+- .NET Framework 4.7.2 SDK
 - Visual Studio 2022 oder JetBrains Rider
 - Shelly Cloud Account mit API Key
 
@@ -243,7 +243,7 @@ System.Diagnostics.Debug.WriteLine("Debug message");
 ## Troubleshooting
 
 ### Plugin wird nicht geladen
-- Stelle sicher, dass .NET 8.0 installiert ist
+- Stelle sicher, dass .NET Framework 4.7.2 installiert ist
 - Prüfe die Loupedeck Software Version (min. 6.0)
 - Schaue in die Loupedeck Logs: `%LocalAppData%\Loupedeck\Logs\`
 
