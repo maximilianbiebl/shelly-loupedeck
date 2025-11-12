@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PluginConfiguration>
-  <PluginId>ShellyCloudControl</PluginId>
+  <PluginId>ShellyLoupedeck</PluginId>
   <DisplayName>Shelly Cloud Control</DisplayName>
   <Description>Control Shelly smart home devices via Loupedeck</Description>
   <Version>1.0.0</Version>

@@ -1,5 +1,5 @@
 {
-  "PluginId": "ShellyCloudControl",
+  "PluginId": "ShellyLoupedeck",
   "DisplayName": "Shelly Cloud Control",
   "Description": "Control Shelly smart home devices via Loupedeck",
   "Version": "1.0.0",
