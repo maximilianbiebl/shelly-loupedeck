@@ -1,184 +1,191 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin.Actions;
-
-public class ThermostatAdjustment : PluginDynamicAdjustment
+namespace ShellyLoupedeckPlugin.Actions
 {
-    private ShellyLoupedeckPlugin _plugin = null!;
-    private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
-
-    public ThermostatAdjustment() : base(true)
+    public class ThermostatAdjustment : PluginDynamicAdjustment
     {
-        DisplayName = "Thermostat Temperature";
-        Description = "Adjust target temperature of thermostats";
-        GroupName = "Thermostat Controls";
-    }
+        private ShellyLoupedeckPlugin _plugin;
+        private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
 
-    protected override bool OnLoad()
-    {
-        _plugin = (ShellyLoupedeckPlugin)Plugin;
-        _plugin.DevicesUpdated += OnDevicesUpdated;
-
-        CreateParameters();
-
-        return base.OnLoad();
-    }
-
-    protected override bool OnUnload()
-    {
-        _plugin.DevicesUpdated -= OnDevicesUpdated;
-        return base.OnUnload();
-    }
-
-    private void OnDevicesUpdated(object? sender, EventArgs e)
-    {
-        CreateParameters();
-        UpdateTemperatureValues();
-    }
-
-    private void CreateParameters()
-    {
-        RemoveAllParameters();
-
-        // Add individual Thermostat devices
-        foreach (var device in _plugin.Devices)
+        public ThermostatAdjustment() : base(true)
         {
-            if (device.GetDeviceType() == ShellyDeviceType.Thermostat)
-            {
-                AddParameter(device.Id, device.Name, "Devices");
-            }
+            DisplayName = "Thermostat Temperature";
+            Description = "Adjust target temperature of thermostats";
+            GroupName = "Thermostat Controls";
         }
 
-        // Add Thermostat groups
-        foreach (var group in _plugin.Groups)
+        protected override bool OnLoad()
         {
-            if (group.Type == ShellyDeviceType.Thermostat)
-            {
-                AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
-            }
+            _plugin = (ShellyLoupedeckPlugin)Plugin;
+            _plugin.DevicesUpdated += OnDevicesUpdated;
+
+            CreateParameters();
+
+            return base.OnLoad();
         }
 
-        AdjustmentValueChanged();
-    }
-
-    private void UpdateTemperatureValues()
-    {
-        foreach (var device in _plugin.Devices)
+        protected override bool OnUnload()
         {
-            if (device.GetDeviceType() == ShellyDeviceType.Thermostat &&
-                device.Status?.Thermostats != null &&
-                device.Status.Thermostats.Count > 0)
+            _plugin.DevicesUpdated -= OnDevicesUpdated;
+            return base.OnUnload();
+        }
+
+        private void OnDevicesUpdated(object sender, EventArgs e)
+        {
+            CreateParameters();
+            UpdateTemperatureValues();
+        }
+
+        private void CreateParameters()
+        {
+            RemoveAllParameters();
+
+            // Add individual Thermostat devices
+            foreach (var device in _plugin.Devices)
             {
-                var thermostat = device.Status.Thermostats[0];
-                if (thermostat.TargetTemperature != null)
+                if (device.GetDeviceType() == ShellyDeviceType.Thermostat)
                 {
-                    _currentTemperature[device.Id] = thermostat.TargetTemperature.Value;
+                    AddParameter(device.Id, device.Name, "Devices");
+                }
+            }
+
+            // Add Thermostat groups
+            foreach (var group in _plugin.Groups)
+            {
+                if (group.Type == ShellyDeviceType.Thermostat)
+                {
+                    AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
+                }
+            }
+
+            AdjustmentValueChanged();
+        }
+
+        private void UpdateTemperatureValues()
+        {
+            foreach (var device in _plugin.Devices)
+            {
+                if (device.GetDeviceType() == ShellyDeviceType.Thermostat &&
+                    device.Status?.Thermostats != null &&
+                    device.Status.Thermostats.Count > 0)
+                {
+                    var thermostat = device.Status.Thermostats[0];
+                    if (thermostat.TargetTemperature != null)
+                    {
+                        _currentTemperature[device.Id] = thermostat.TargetTemperature.Value;
+                    }
                 }
             }
         }
-    }
 
-    protected override async void ApplyAdjustment(string actionParameter, int diff)
-    {
-        if (string.IsNullOrEmpty(actionParameter))
-            return;
-
-        if (actionParameter.StartsWith("group_"))
+        protected override async void ApplyAdjustment(string actionParameter, int diff)
         {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            if (group != null)
+            if (string.IsNullOrEmpty(actionParameter))
+                return;
+
+            if (actionParameter.StartsWith("group_"))
             {
-                foreach (var deviceId in group.DeviceIds)
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
                 {
-                    await AdjustDeviceTemperatureAsync(deviceId, diff);
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        await AdjustDeviceTemperatureAsync(deviceId, diff);
+                    }
                 }
-            }
-        }
-        else
-        {
-            await AdjustDeviceTemperatureAsync(actionParameter, diff);
-        }
-
-        AdjustmentValueChanged(actionParameter);
-    }
-
-    private async Task AdjustDeviceTemperatureAsync(string deviceId, int diff)
-    {
-        if (!_currentTemperature.ContainsKey(deviceId))
-        {
-            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device?.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
-            {
-                _currentTemperature[deviceId] = device.Status.Thermostats[0].TargetTemperature?.Value ?? 20.0;
             }
             else
             {
-                _currentTemperature[deviceId] = 20.0;
+                await AdjustDeviceTemperatureAsync(actionParameter, diff);
             }
+
+            AdjustmentValueChanged(actionParameter);
         }
 
-        var newTemperature = Math.Clamp(_currentTemperature[deviceId] + (diff * 0.5), 5.0, 30.0);
-        _currentTemperature[deviceId] = newTemperature;
-
-        await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemperature);
-    }
-
-    protected override string GetAdjustmentValue(string actionParameter)
-    {
-        if (string.IsNullOrEmpty(actionParameter))
-            return "20°C";
-
-        double temperature = 20.0;
-
-        if (actionParameter.StartsWith("group_"))
+        private async Task AdjustDeviceTemperatureAsync(string deviceId, int diff)
         {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            if (group != null && group.DeviceIds.Count > 0)
+            if (!_currentTemperature.ContainsKey(deviceId))
             {
-                var firstDeviceId = group.DeviceIds[0];
-                if (_currentTemperature.ContainsKey(firstDeviceId))
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device?.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
                 {
-                    temperature = _currentTemperature[firstDeviceId];
+                    _currentTemperature[deviceId] = device.Status.Thermostats[0].TargetTemperature?.Value ?? 20.0;
+                }
+                else
+                {
+                    _currentTemperature[deviceId] = 20.0;
                 }
             }
+
+            var newTemperature = Math.Max(5.0, Math.Min(30.0, _currentTemperature[deviceId] + (diff * 0.5)));
+            _currentTemperature[deviceId] = newTemperature;
+
+            await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemperature);
         }
-        else if (_currentTemperature.ContainsKey(actionParameter))
+
+        protected override string GetAdjustmentValue(string actionParameter)
         {
-            temperature = _currentTemperature[actionParameter];
+            if (string.IsNullOrEmpty(actionParameter))
+                return "20°C";
+
+            double temperature = 20.0;
+
+            if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null && group.DeviceIds.Count > 0)
+                {
+                    var firstDeviceId = group.DeviceIds[0];
+                    if (_currentTemperature.ContainsKey(firstDeviceId))
+                    {
+                        temperature = _currentTemperature[firstDeviceId];
+                    }
+                }
+            }
+            else if (_currentTemperature.ContainsKey(actionParameter))
+            {
+                temperature = _currentTemperature[actionParameter];
+            }
+
+            return $"{temperature:F1}°C";
         }
 
-        return $"{temperature:F1}°C";
-    }
-
-    protected override BitmapImage? GetCommandImage(string actionParameter, PluginImageSize imageSize)
-    {
-        var temperature = GetAdjustmentValue(actionParameter);
-
-        string deviceName;
-        if (string.IsNullOrEmpty(actionParameter))
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
-            deviceName = "Thermostat";
-        }
-        else if (actionParameter.StartsWith("group_"))
-        {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            deviceName = group?.Name ?? "Unknown";
-        }
-        else
-        {
-            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
-            deviceName = device?.Name ?? "Unknown";
-        }
+            var temperature = GetAdjustmentValue(actionParameter);
 
-        using var builder = new BitmapBuilder(imageSize);
-        builder.Clear(BitmapColor.Black);
-        builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(temperature, BitmapColor.White, 40);
+            string deviceName;
+            if (string.IsNullOrEmpty(actionParameter))
+            {
+                deviceName = "Thermostat";
+            }
+            else if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                deviceName = group?.Name ?? "Unknown";
+            }
+            else
+            {
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
+                deviceName = device?.Name ?? "Unknown";
+            }
 
-        return builder.ToImage();
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(BitmapColor.Black);
+                builder.DrawText(deviceName, BitmapColor.White, 12);
+                builder.DrawText(temperature, BitmapColor.White, 40);
+
+                return builder.ToImage();
+            }
+        }
     }
 }

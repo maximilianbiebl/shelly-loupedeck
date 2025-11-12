@@ -1,12 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin.Api;
-
-public class ShellyApiClient
+namespace ShellyLoupedeckPlugin.Api
 {
+    public class ShellyApiClient
+    {
     private readonly HttpClient _httpClient;
     private string _serverUrl = "https://shelly-28-eu.shelly.cloud";
     private string _authKey = string.Empty;
@@ -56,7 +60,11 @@ public class ShellyApiClient
             var content = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
 
-            return result?.Data?.DevicesList ?? new List<ShellyDevice>();
+            if (result != null && result.Data != null && result.Data.DevicesList != null)
+            {
+                return result.Data.DevicesList;
+            }
+            return new List<ShellyDevice>();
         }
         catch (Exception ex)
         {
@@ -65,7 +73,7 @@ public class ShellyApiClient
         }
     }
 
-    public async Task<ShellyDevice?> GetDeviceStatusAsync(string deviceId)
+    public async Task<ShellyDevice> GetDeviceStatusAsync(string deviceId)
     {
         if (!IsConfigured)
             throw new InvalidOperationException("API client not configured");
@@ -81,7 +89,11 @@ public class ShellyApiClient
             var content = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<DeviceStatusResponse>(content);
 
-            return result?.Data?.DeviceStatus;
+            if (result != null && result.Data != null)
+            {
+                return result.Data.DeviceStatus;
+            }
+            return null;
         }
         catch (Exception ex)
         {
@@ -202,34 +214,34 @@ public class ShellyApiClient
             return false;
         }
     }
-}
 
-public class DeviceListResponse
-{
-    [JsonProperty("isok")]
-    public bool IsOk { get; set; }
+    public class DeviceListResponse
+    {
+        [JsonProperty("isok")]
+        public bool IsOk { get; set; }
 
-    [JsonProperty("data")]
-    public DeviceListData? Data { get; set; }
-}
+        [JsonProperty("data")]
+        public DeviceListData Data { get; set; }
+    }
 
-public class DeviceListData
-{
-    [JsonProperty("devices")]
-    public List<ShellyDevice> DevicesList { get; set; } = new List<ShellyDevice>();
-}
+    public class DeviceListData
+    {
+        [JsonProperty("devices")]
+        public List<ShellyDevice> DevicesList { get; set; } = new List<ShellyDevice>();
+    }
 
-public class DeviceStatusResponse
-{
-    [JsonProperty("isok")]
-    public bool IsOk { get; set; }
+    public class DeviceStatusResponse
+    {
+        [JsonProperty("isok")]
+        public bool IsOk { get; set; }
 
-    [JsonProperty("data")]
-    public DeviceStatusData? Data { get; set; }
-}
+        [JsonProperty("data")]
+        public DeviceStatusData Data { get; set; }
+    }
 
-public class DeviceStatusData
-{
-    [JsonProperty("device_status")]
-    public ShellyDevice? DeviceStatus { get; set; }
+    public class DeviceStatusData
+    {
+        [JsonProperty("device_status")]
+        public ShellyDevice DeviceStatus { get; set; }
+    }
 }

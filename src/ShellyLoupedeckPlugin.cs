@@ -1,16 +1,19 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Loupedeck;
 using Newtonsoft.Json;
 using ShellyLoupedeckPlugin.Api;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin;
-
-public class ShellyLoupedeckPlugin : Plugin
+namespace ShellyLoupedeckPlugin
 {
+    public class ShellyLoupedeckPlugin : Plugin
+    {
     private ShellyApiClient _apiClient;
     private List<ShellyDevice> _devices = new List<ShellyDevice>();
     private List<DeviceGroup> _groups = new List<DeviceGroup>();
-    private System.Threading.Timer? _refreshTimer;
+    private System.Threading.Timer _refreshTimer;
 
     public ShellyApiClient ApiClient => _apiClient;
     public List<ShellyDevice> Devices => _devices;
@@ -60,7 +63,10 @@ public class ShellyLoupedeckPlugin : Plugin
 
     public override void Unload()
     {
-        _refreshTimer?.Dispose();
+        if (_refreshTimer != null)
+        {
+            _refreshTimer.Dispose();
+        }
         base.Unload();
     }
 
@@ -119,19 +125,23 @@ public class ShellyLoupedeckPlugin : Plugin
         }
     }
 
-    public event EventHandler? DevicesUpdated;
+    public event EventHandler DevicesUpdated;
 
     protected virtual void OnDevicesUpdated()
     {
-        DevicesUpdated?.Invoke(this, EventArgs.Empty);
+        if (DevicesUpdated != null)
+        {
+            DevicesUpdated.Invoke(this, EventArgs.Empty);
+        }
     }
 
-    private string GetPluginSetting(string key, string defaultValue)
-    {
-        if (TryGetPluginSetting(key, out var value))
+        private string GetPluginSetting(string key, string defaultValue)
         {
-            return value;
+            if (TryGetPluginSetting(key, out var value))
+            {
+                return value;
+            }
+            return defaultValue;
         }
-        return defaultValue;
     }
 }

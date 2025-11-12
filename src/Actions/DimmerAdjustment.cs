@@ -1,180 +1,187 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin.Actions;
-
-public class DimmerAdjustment : PluginDynamicAdjustment
+namespace ShellyLoupedeckPlugin.Actions
 {
-    private ShellyLoupedeckPlugin _plugin = null!;
-    private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
-
-    public DimmerAdjustment() : base(true)
+    public class DimmerAdjustment : PluginDynamicAdjustment
     {
-        DisplayName = "Dimmer Brightness";
-        Description = "Adjust brightness of Shelly Dimmers";
-        GroupName = "Dimmer Controls";
-    }
+        private ShellyLoupedeckPlugin _plugin;
+        private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
 
-    protected override bool OnLoad()
-    {
-        _plugin = (ShellyLoupedeckPlugin)Plugin;
-        _plugin.DevicesUpdated += OnDevicesUpdated;
-
-        CreateParameters();
-
-        return base.OnLoad();
-    }
-
-    protected override bool OnUnload()
-    {
-        _plugin.DevicesUpdated -= OnDevicesUpdated;
-        return base.OnUnload();
-    }
-
-    private void OnDevicesUpdated(object? sender, EventArgs e)
-    {
-        CreateParameters();
-        UpdateBrightnessValues();
-    }
-
-    private void CreateParameters()
-    {
-        RemoveAllParameters();
-
-        // Add individual Dimmer devices
-        foreach (var device in _plugin.Devices)
+        public DimmerAdjustment() : base(true)
         {
-            if (device.GetDeviceType() == ShellyDeviceType.Dimmer)
-            {
-                AddParameter(device.Id, device.Name, "Devices");
-            }
+            DisplayName = "Dimmer Brightness";
+            Description = "Adjust brightness of Shelly Dimmers";
+            GroupName = "Dimmer Controls";
         }
 
-        // Add Dimmer groups
-        foreach (var group in _plugin.Groups)
+        protected override bool OnLoad()
         {
-            if (group.Type == ShellyDeviceType.Dimmer)
-            {
-                AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
-            }
+            _plugin = (ShellyLoupedeckPlugin)Plugin;
+            _plugin.DevicesUpdated += OnDevicesUpdated;
+
+            CreateParameters();
+
+            return base.OnLoad();
         }
 
-        AdjustmentValueChanged();
-    }
-
-    private void UpdateBrightnessValues()
-    {
-        foreach (var device in _plugin.Devices)
+        protected override bool OnUnload()
         {
-            if (device.GetDeviceType() == ShellyDeviceType.Dimmer &&
-                device.Status?.Lights != null &&
-                device.Status.Lights.Count > 0)
-            {
-                _currentBrightness[device.Id] = device.Status.Lights[0].Brightness;
-            }
+            _plugin.DevicesUpdated -= OnDevicesUpdated;
+            return base.OnUnload();
         }
-    }
 
-    protected override async void ApplyAdjustment(string actionParameter, int diff)
-    {
-        if (string.IsNullOrEmpty(actionParameter))
-            return;
-
-        if (actionParameter.StartsWith("group_"))
+        private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            if (group != null)
+            CreateParameters();
+            UpdateBrightnessValues();
+        }
+
+        private void CreateParameters()
+        {
+            RemoveAllParameters();
+
+            // Add individual Dimmer devices
+            foreach (var device in _plugin.Devices)
             {
-                foreach (var deviceId in group.DeviceIds)
+                if (device.GetDeviceType() == ShellyDeviceType.Dimmer)
                 {
-                    await AdjustDeviceBrightnessAsync(deviceId, diff);
+                    AddParameter(device.Id, device.Name, "Devices");
+                }
+            }
+
+            // Add Dimmer groups
+            foreach (var group in _plugin.Groups)
+            {
+                if (group.Type == ShellyDeviceType.Dimmer)
+                {
+                    AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
+                }
+            }
+
+            AdjustmentValueChanged();
+        }
+
+        private void UpdateBrightnessValues()
+        {
+            foreach (var device in _plugin.Devices)
+            {
+                if (device.GetDeviceType() == ShellyDeviceType.Dimmer &&
+                    device.Status?.Lights != null &&
+                    device.Status.Lights.Count > 0)
+                {
+                    _currentBrightness[device.Id] = device.Status.Lights[0].Brightness;
                 }
             }
         }
-        else
-        {
-            await AdjustDeviceBrightnessAsync(actionParameter, diff);
-        }
 
-        AdjustmentValueChanged(actionParameter);
-    }
-
-    private async Task AdjustDeviceBrightnessAsync(string deviceId, int diff)
-    {
-        if (!_currentBrightness.ContainsKey(deviceId))
+        protected override async void ApplyAdjustment(string actionParameter, int diff)
         {
-            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+            if (string.IsNullOrEmpty(actionParameter))
+                return;
+
+            if (actionParameter.StartsWith("group_"))
             {
-                _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
+                {
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        await AdjustDeviceBrightnessAsync(deviceId, diff);
+                    }
+                }
             }
             else
             {
-                _currentBrightness[deviceId] = 50;
+                await AdjustDeviceBrightnessAsync(actionParameter, diff);
             }
+
+            AdjustmentValueChanged(actionParameter);
         }
 
-        var newBrightness = Math.Clamp(_currentBrightness[deviceId] + (diff * 5), 0, 100);
-        _currentBrightness[deviceId] = newBrightness;
-
-        await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
-    }
-
-    protected override string GetAdjustmentValue(string actionParameter)
-    {
-        if (string.IsNullOrEmpty(actionParameter))
-            return "0%";
-
-        int brightness = 0;
-
-        if (actionParameter.StartsWith("group_"))
+        private async Task AdjustDeviceBrightnessAsync(string deviceId, int diff)
         {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            if (group != null && group.DeviceIds.Count > 0)
+            if (!_currentBrightness.ContainsKey(deviceId))
             {
-                var firstDeviceId = group.DeviceIds[0];
-                if (_currentBrightness.ContainsKey(firstDeviceId))
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                 {
-                    brightness = _currentBrightness[firstDeviceId];
+                    _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
+                }
+                else
+                {
+                    _currentBrightness[deviceId] = 50;
                 }
             }
+
+            var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + (diff * 5)));
+            _currentBrightness[deviceId] = newBrightness;
+
+            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
         }
-        else if (_currentBrightness.ContainsKey(actionParameter))
+
+        protected override string GetAdjustmentValue(string actionParameter)
         {
-            brightness = _currentBrightness[actionParameter];
+            if (string.IsNullOrEmpty(actionParameter))
+                return "0%";
+
+            int brightness = 0;
+
+            if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null && group.DeviceIds.Count > 0)
+                {
+                    var firstDeviceId = group.DeviceIds[0];
+                    if (_currentBrightness.ContainsKey(firstDeviceId))
+                    {
+                        brightness = _currentBrightness[firstDeviceId];
+                    }
+                }
+            }
+            else if (_currentBrightness.ContainsKey(actionParameter))
+            {
+                brightness = _currentBrightness[actionParameter];
+            }
+
+            return $"{brightness}%";
         }
 
-        return $"{brightness}%";
-    }
-
-    protected override BitmapImage? GetCommandImage(string actionParameter, PluginImageSize imageSize)
-    {
-        var brightness = GetAdjustmentValue(actionParameter);
-
-        string deviceName;
-        if (string.IsNullOrEmpty(actionParameter))
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
-            deviceName = "Dimmer";
-        }
-        else if (actionParameter.StartsWith("group_"))
-        {
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            deviceName = group?.Name ?? "Unknown";
-        }
-        else
-        {
-            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
-            deviceName = device?.Name ?? "Unknown";
-        }
+            var brightness = GetAdjustmentValue(actionParameter);
 
-        using var builder = new BitmapBuilder(imageSize);
-        builder.Clear(BitmapColor.Black);
-        builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(brightness, BitmapColor.White, 40);
+            string deviceName;
+            if (string.IsNullOrEmpty(actionParameter))
+            {
+                deviceName = "Dimmer";
+            }
+            else if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                deviceName = group?.Name ?? "Unknown";
+            }
+            else
+            {
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
+                deviceName = device?.Name ?? "Unknown";
+            }
 
-        return builder.ToImage();
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(BitmapColor.Black);
+                builder.DrawText(deviceName, BitmapColor.White, 12);
+                builder.DrawText(brightness, BitmapColor.White, 40);
+
+                return builder.ToImage();
+            }
+        }
     }
 }
