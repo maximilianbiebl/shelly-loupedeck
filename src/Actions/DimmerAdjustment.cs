@@ -25,10 +25,10 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         return base.OnLoad();
     }
 
-    protected override void OnUnload()
+    protected override bool OnUnload()
     {
         _plugin.DevicesUpdated -= OnDevicesUpdated;
-        base.OnUnload();
+        return base.OnUnload();
     }
 
     private void OnDevicesUpdated(object? sender, EventArgs e)
