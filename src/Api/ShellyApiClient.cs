@@ -214,6 +214,7 @@ namespace ShellyLoupedeckPlugin.Api
             return false;
         }
     }
+    }
 
     public class DeviceListResponse
     {
