@@ -44,7 +44,7 @@ New-Item -ItemType Directory -Path $winDir | Out-Null
 New-Item -ItemType Directory -Path "$packageDir\metadata" | Out-Null
 
 # Copy files
-$buildOutput = "bin\Release\net8.0-windows"
+$buildOutput = "bin\x64\Release\net8.0-windows"
 
 Write-Host "Copying plugin files..." -ForegroundColor Yellow
 
