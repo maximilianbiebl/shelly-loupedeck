@@ -1,6 +1,6 @@
 type: plugin4
 
-name: Shelly Cloud Control
+name: ShellyCloudControl
 displayName: Shelly Cloud Control
 version: 1.0.0
 author: Shelly Loupedeck Plugin
