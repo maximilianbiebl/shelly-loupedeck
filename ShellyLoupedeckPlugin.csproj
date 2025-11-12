@@ -7,10 +7,20 @@
     <Platforms>x64</Platforms>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <!-- Loupedeck Installation Path - Adjust if your installation is elsewhere -->
+    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == '' And Exists('C:\Program Files\Loupedeck\Loupedeck2\')">C:\Program Files\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
+    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == '' And Exists('C:\Program Files (x86)\Loupedeck\Loupedeck2\')">C:\Program Files (x86)\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
+    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == ''">C:\Program Files\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Loupedeck.Plugin.SDK" Version="6.*" />
+    <!-- Loupedeck Plugin SDK - Referenced from local installation -->
+    <Reference Include="PluginApi">
+      <HintPath>$(LoupedeckInstallFolder)PluginApi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 

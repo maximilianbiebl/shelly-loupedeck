@@ -20,6 +20,20 @@
 3. Installiere die Software
 4. Starte Loupedeck und schließe es wieder
 
+### Loupedeck SDK Pfad prüfen (WICHTIG!)
+
+Das Plugin benötigt die **PluginApi.dll** aus der Loupedeck Installation.
+
+**Schnelltest - Prüfe ob die Datei existiert:**
+```powershell
+# In PowerShell ausführen:
+Test-Path "C:\Program Files\Loupedeck\Loupedeck2\PluginApi.dll"
+# oder
+Test-Path "C:\Program Files (x86)\Loupedeck\Loupedeck2\PluginApi.dll"
+```
+
+Sollte `True` zurückgeben. Falls `False`, siehe **SDK_PATH.md** für Hilfe.
+
 ## Schritt 2: Shelly Cloud API Key erhalten
 
 ### In der Shelly App (Smartphone)
@@ -226,16 +240,29 @@ dotnet build -c Release
 
 ### Fehler beim Kompilieren
 
-**Problem**: `Loupedeck.Plugin.SDK` nicht gefunden
+**Problem**: `PluginApi.dll` nicht gefunden oder "Das Paket Loupedeck.Plugin.SDK wurde nicht gefunden"
 
 **Lösung**:
-```powershell
-# NuGet-Packages wiederherstellen
-dotnet restore
+1. Prüfe, ob die PluginApi.dll existiert:
+   ```powershell
+   Test-Path "C:\Program Files\Loupedeck\Loupedeck2\PluginApi.dll"
+   ```
 
-# Erneut bauen
-dotnet build -c Release
-```
+2. Falls False, suche nach der DLL:
+   ```powershell
+   Get-ChildItem -Path "C:\Program Files" -Filter "PluginApi.dll" -Recurse -ErrorAction SilentlyContinue
+   ```
+
+3. Passe den Pfad in `ShellyLoupedeckPlugin.csproj` an:
+   - Öffne die Datei in einem Texteditor
+   - Ändere Zeile 12-14 mit dem korrekten Pfad
+   - Siehe **SDK_PATH.md** für Details
+
+4. Baue erneut:
+   ```powershell
+   dotnet restore
+   dotnet build -c Release
+   ```
 
 **Problem**: .NET 8.0 nicht gefunden
 
