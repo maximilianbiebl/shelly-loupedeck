@@ -1,0 +1,27 @@
+{
+  "PluginId": "ShellyCloudControl",
+  "DisplayName": "Shelly Cloud Control",
+  "Description": "Control Shelly smart home devices via Loupedeck",
+  "Version": "1.0.0",
+  "Author": "Shelly Loupedeck Plugin",
+  "SupportedDevices": [
+    "LoupedeckLive",
+    "LoupedeckLiveS",
+    "RazerStreamController",
+    "RazerStreamControllerX"
+  ],
+  "Settings": {
+    "ServerUrl": {
+      "Type": "String",
+      "DisplayName": "Shelly Cloud Server URL",
+      "DefaultValue": "https://shelly-28-eu.shelly.cloud",
+      "Description": "The URL of your Shelly Cloud server"
+    },
+    "AuthKey": {
+      "Type": "String",
+      "DisplayName": "Authorization Key",
+      "DefaultValue": "",
+      "Description": "Your Shelly Cloud authorization key"
+    }
+  }
+}
