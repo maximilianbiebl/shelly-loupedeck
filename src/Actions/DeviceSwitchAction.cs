@@ -45,6 +45,7 @@ namespace ShellyLoupedeckPlugin.Actions
             RemoveAllParameters();
 
             // Add individual devices
+            int deviceCount = 0;
             foreach (var device in _plugin.Devices)
             {
                 var deviceType = device.GetDeviceType();
@@ -53,6 +54,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     deviceType == ShellyDeviceType.RGBW)
                 {
                     AddParameter(device.Id, device.Name, "Devices");
+                    deviceCount++;
                 }
             }
 
@@ -64,7 +66,14 @@ namespace ShellyLoupedeckPlugin.Actions
                     group.Type == ShellyDeviceType.RGBW)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
+                    deviceCount++;
                 }
+            }
+
+            // If no devices, add info parameter
+            if (deviceCount == 0)
+            {
+                AddParameter("__no_devices", "No devices configured", "Info");
             }
 
             ActionImageChanged();
