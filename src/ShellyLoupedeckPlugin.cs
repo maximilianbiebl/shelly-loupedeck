@@ -19,8 +19,8 @@ namespace ShellyLoupedeckPlugin
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;
 
-        public override bool UsesApplicationApiOnly => false;
-        public override bool HasNoApplication => true;
+        public override bool UsesApplicationApiOnly => true;
+        public override bool HasNoApplication => false;
 
         public ShellyLoupedeckPlugin()
         {
