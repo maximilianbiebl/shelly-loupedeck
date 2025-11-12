@@ -2,7 +2,7 @@ using Loupedeck;
 
 namespace ShellyLoupedeckPlugin.Commands
 {
-    public class SettingsCommand : PluginCommand
+    public class SettingsCommand : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
 
@@ -16,17 +16,21 @@ namespace ShellyLoupedeckPlugin.Commands
         protected override bool OnLoad()
         {
             _plugin = (ShellyLoupedeckPlugin)Plugin;
+
+            // Add a default parameter so the command is visible
+            AddParameter("configure", "Configure API", "Settings");
+
             return base.OnLoad();
         }
 
-        protected override void RunCommand()
+        protected override void RunCommand(string actionParameter)
         {
             // This will open a simple dialog for settings
             // For now, users will need to configure settings via the plugin settings file
             // In a full implementation, you would show a custom UI dialog here
         }
 
-        protected override BitmapImage GetCommandImage(PluginImageSize imageSize)
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
             using (var bitmapBuilder = new BitmapBuilder(imageSize))
             {
