@@ -42,7 +42,7 @@ public class ThermostatBoostAction : PluginDynamicCommand
         // Add individual Thermostat devices with different boost durations
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat)
+            if (device.GetDeviceType() == ShellyDeviceType.Thermostat)
             {
                 AddParameter($"{device.Id}_30", $"{device.Name} - 30min", device.Name);
                 AddParameter($"{device.Id}_60", $"{device.Name} - 60min", device.Name);

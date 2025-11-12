@@ -44,7 +44,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         // Add individual Dimmer devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.Dimmer)
+            if (device.GetDeviceType() == ShellyDeviceType.Dimmer)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -66,7 +66,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.Dimmer &&
+            if (device.GetDeviceType() == ShellyDeviceType.Dimmer &&
                 device.Status?.Lights != null &&
                 device.Status.Lights.Count > 0)
             {
@@ -173,7 +173,7 @@ public class DimmerAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(brightness, BitmapColor.White, 40, null, 20);
+        builder.DrawText(brightness, BitmapColor.White, 40);
 
         return builder.ToImage();
     }

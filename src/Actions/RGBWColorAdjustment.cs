@@ -54,7 +54,7 @@ public class RGBWColorAdjustment : PluginDynamicCommand
         // Add color presets for each device
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW)
+            if (device.GetDeviceType() == ShellyDeviceType.RGBW)
             {
                 foreach (var color in _presetColors)
                 {

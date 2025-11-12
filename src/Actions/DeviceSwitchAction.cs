@@ -44,7 +44,7 @@ public class DeviceSwitchAction : PluginDynamicCommand
         // Add individual devices
         foreach (var device in _plugin.Devices)
         {
-            var deviceType = device.GetShellyDeviceType();
+            var deviceType = device.GetDeviceType();
             if (deviceType == ShellyDeviceType.Switch ||
                 deviceType == ShellyDeviceType.ShellyPlus2PM ||
                 deviceType == ShellyDeviceType.RGBW)

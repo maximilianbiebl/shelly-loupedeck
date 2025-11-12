@@ -44,7 +44,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
         // Add individual Thermostat devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat)
+            if (device.GetDeviceType() == ShellyDeviceType.Thermostat)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -66,7 +66,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.Thermostat &&
+            if (device.GetDeviceType() == ShellyDeviceType.Thermostat &&
                 device.Status?.Thermostats != null &&
                 device.Status.Thermostats.Count > 0)
             {
@@ -177,7 +177,7 @@ public class ThermostatAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(temperature, BitmapColor.White, 40, null, 20);
+        builder.DrawText(temperature, BitmapColor.White, 40);
 
         return builder.ToImage();
     }

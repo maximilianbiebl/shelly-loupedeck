@@ -44,7 +44,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
         // Add individual RGBW devices
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW)
+            if (device.GetDeviceType() == ShellyDeviceType.RGBW)
             {
                 AddParameter(device.Id, device.Name, "Devices");
             }
@@ -66,7 +66,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
     {
         foreach (var device in _plugin.Devices)
         {
-            if (device.GetShellyDeviceType() == ShellyDeviceType.RGBW &&
+            if (device.GetDeviceType() == ShellyDeviceType.RGBW &&
                 device.Status?.Lights != null &&
                 device.Status.Lights.Count > 0)
             {
@@ -173,7 +173,7 @@ public class RGBWBrightnessAdjustment : PluginDynamicAdjustment
         using var builder = new BitmapBuilder(imageSize);
         builder.Clear(BitmapColor.Black);
         builder.DrawText(deviceName, BitmapColor.White, 12);
-        builder.DrawText(brightness, BitmapColor.White, 40, null, 20);
+        builder.DrawText(brightness, BitmapColor.White, 40);
 
         return builder.ToImage();
     }

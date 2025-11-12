@@ -83,23 +83,23 @@ public class DeviceOverviewCommand : PluginDynamicCommand
 
             case "switches":
                 var switchCount = _plugin.Devices.Count(d =>
-                    d.GetShellyDeviceType() == ShellyDeviceType.Switch ||
-                    d.GetShellyDeviceType() == ShellyDeviceType.ShellyPlus2PM);
+                    d.GetDeviceType() == ShellyDeviceType.Switch ||
+                    d.GetDeviceType() == ShellyDeviceType.ShellyPlus2PM);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Switches\n({switchCount})", BitmapColor.White);
                 break;
 
             case "lights":
                 var lightCount = _plugin.Devices.Count(d =>
-                    d.GetShellyDeviceType() == ShellyDeviceType.RGBW ||
-                    d.GetShellyDeviceType() == ShellyDeviceType.Dimmer);
+                    d.GetDeviceType() == ShellyDeviceType.RGBW ||
+                    d.GetDeviceType() == ShellyDeviceType.Dimmer);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Lights\n({lightCount})", BitmapColor.White);
                 break;
 
             case "thermostats":
                 var thermostatCount = _plugin.Devices.Count(d =>
-                    d.GetShellyDeviceType() == ShellyDeviceType.Thermostat);
+                    d.GetDeviceType() == ShellyDeviceType.Thermostat);
                 builder.Clear(BitmapColor.Black);
                 builder.DrawText($"Thermostats\n({thermostatCount})", BitmapColor.White);
                 break;
