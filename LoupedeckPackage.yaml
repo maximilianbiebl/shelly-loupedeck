@@ -1,0 +1,19 @@
+type: plugin4
+
+name: Shelly Cloud Control
+displayName: Shelly Cloud Control
+version: 1.0.0
+author: Shelly Loupedeck Plugin
+copyright: Copyright © 2024
+
+supportedDevices:
+  - LoupedeckLive
+  - LoupedeckLiveS
+  - RazerStreamController
+  - RazerStreamControllerX
+
+pluginFolderWin: win
+pluginFileName: ShellyLoupedeckPlugin.dll
+pluginFolderMac: mac
+
+supportUrl: https://github.com/maximilianbiebl/shelly-loupedeck
