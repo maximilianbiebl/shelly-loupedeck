@@ -48,10 +48,17 @@ $buildOutput = "bin\x64\Release\net8.0-windows"
 
 Write-Host "Copying plugin files..." -ForegroundColor Yellow
 
-# Copy DLLs (excluding PluginApi.dll which comes from Loupedeck)
-Copy-Item "$buildOutput\ShellyLoupedeckPlugin.dll" -Destination $winDir
-Copy-Item "$buildOutput\ShellyLoupedeckPlugin.pdb" -Destination $winDir -ErrorAction SilentlyContinue
-Copy-Item "$buildOutput\Newtonsoft.Json.dll" -Destination $winDir
+# Copy all DLLs (excluding PluginApi.dll which comes from Loupedeck)
+Get-ChildItem "$buildOutput\*.dll" | Where-Object { $_.Name -ne "PluginApi.dll" } | ForEach-Object {
+    Write-Host "  Copying $($_.Name)..." -ForegroundColor Gray
+    Copy-Item $_.FullName -Destination $winDir
+}
+
+# Copy PDB files for debugging
+Get-ChildItem "$buildOutput\*.pdb" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host "  Copying $($_.Name)..." -ForegroundColor Gray
+    Copy-Item $_.FullName -Destination $winDir
+}
 
 # Copy manifest and metadata
 Copy-Item "LoupedeckPackage.yaml" -Destination $packageDir
