@@ -54,30 +54,31 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
-                System.Diagnostics.Debug.WriteLine($"Shelly API: Requesting devices from {_serverUrl}");
+                DebugLogger.Log($"Shelly API: Requesting devices from {_serverUrl}");
+                DebugLogger.Log($"Shelly API: Full URL: {url}");
 
                 var response = await _httpClient.GetAsync(url);
-                System.Diagnostics.Debug.WriteLine($"Shelly API: Response status {response.StatusCode}");
+                DebugLogger.Log($"Shelly API: Response status {response.StatusCode}");
 
                 response.EnsureSuccessStatusCode();
 
                 var content = await response.Content.ReadAsStringAsync();
-                System.Diagnostics.Debug.WriteLine($"Shelly API: Response content length: {content.Length}");
-                System.Diagnostics.Debug.WriteLine($"Shelly API: Raw JSON response: {content.Substring(0, Math.Min(500, content.Length))}");
+                DebugLogger.Log($"Shelly API: Response content length: {content.Length}");
+                DebugLogger.Log($"Shelly API: Raw JSON response: {content}");
 
                 var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
 
-                System.Diagnostics.Debug.WriteLine($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesList is null: {result?.Data?.DevicesList == null}");
+                DebugLogger.Log($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesList is null: {result?.Data?.DevicesList == null}");
 
                 if (result != null && result.Data != null && result.Data.DevicesList != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Shelly API: Found {result.Data.DevicesList.Count} devices");
+                    DebugLogger.Log($"Shelly API: Found {result.Data.DevicesList.Count} devices");
                     return result.Data.DevicesList;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Shelly API: No devices found (null response data)");
+                DebugLogger.Log($"Shelly API: No devices found (null response data)");
                 System.Windows.Forms.MessageBox.Show(
-                    $"API Response received but no devices found.\n\nResponse preview:\n{content.Substring(0, Math.Min(300, content.Length))}\n\nCheck Loupedeck logs for full response.",
+                    $"API Response received but no devices found.\n\nResponse preview:\n{content.Substring(0, Math.Min(300, content.Length))}\n\nCheck log file at:\n%LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
                     "Shelly API - No Devices",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Warning
@@ -86,8 +87,8 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Shelly API ERROR: {ex.GetType().Name}: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Shelly API ERROR Stack: {ex.StackTrace}");
+                DebugLogger.Log($"Shelly API ERROR: {ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Log($"Shelly API ERROR Stack: {ex.StackTrace}");
                 throw; // Re-throw so caller can handle
             }
         }

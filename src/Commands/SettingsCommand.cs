@@ -27,6 +27,8 @@ namespace ShellyLoupedeckPlugin.Commands
 
         protected override void RunCommand(string actionParameter)
         {
+            DebugLogger.Log("=== SettingsCommand RunCommand called ===");
+
             // Get current settings
             var currentServerUrl = "";
             var currentAuthKey = "";
@@ -41,13 +43,21 @@ namespace ShellyLoupedeckPlugin.Commands
                 currentAuthKey = authKey;
             }
 
+            DebugLogger.Log($"Current ServerUrl: {currentServerUrl}");
+            DebugLogger.Log($"Current AuthKey length: {currentAuthKey?.Length ?? 0}");
+
             // Open settings dialog
             var dialog = new SettingsDialog(currentServerUrl, currentAuthKey);
             dialog.ShowDialog();
 
+            DebugLogger.Log($"Dialog closed, SaveClicked: {dialog.SaveClicked}");
+
             // Save settings if user clicked Save
             if (dialog.SaveClicked)
             {
+                DebugLogger.Log($"Saving new ServerUrl: {dialog.ServerUrl}");
+                DebugLogger.Log($"Saving new AuthKey length: {dialog.AuthKey?.Length ?? 0}");
+
                 _plugin.SaveConfiguration(dialog.ServerUrl, dialog.AuthKey);
 
                 // Show confirmation
@@ -57,7 +67,7 @@ namespace ShellyLoupedeckPlugin.Commands
                     "- Server URL is correct (e.g., https://shelly-28-eu.shelly.cloud)\n" +
                     "- Authorization Key is correct\n" +
                     "- You have internet connection\n\n" +
-                    "Check the Loupedeck logs for any errors.",
+                    "Log file: %LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
                     "Shelly Settings Saved",
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Information

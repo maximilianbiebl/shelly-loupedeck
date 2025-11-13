@@ -29,14 +29,25 @@ namespace ShellyLoupedeckPlugin
 
         public override void Load()
         {
+            DebugLogger.Clear(); // Clear previous log
+            DebugLogger.Log("=== Plugin Load called ===");
+
             // Load settings
             var serverUrl = GetPluginSetting("ServerUrl", "https://shelly-28-eu.shelly.cloud");
             var authKey = GetPluginSetting("AuthKey", "");
 
+            DebugLogger.Log($"Loaded ServerUrl: {serverUrl}");
+            DebugLogger.Log($"Loaded AuthKey length: {authKey?.Length ?? 0}");
+
             if (!string.IsNullOrEmpty(authKey))
             {
+                DebugLogger.Log("AuthKey found, configuring API client and loading devices");
                 _apiClient.Configure(serverUrl, authKey);
                 _ = RefreshDevicesAsync();
+            }
+            else
+            {
+                DebugLogger.Log("No AuthKey found, skipping initial device load");
             }
 
             // Load groups
@@ -72,32 +83,40 @@ namespace ShellyLoupedeckPlugin
 
         public void SaveConfiguration(string serverUrl, string authKey)
         {
+            DebugLogger.Log("=== SaveConfiguration called ===");
+            DebugLogger.Log($"ServerUrl: {serverUrl}");
+            DebugLogger.Log($"AuthKey length: {authKey?.Length ?? 0}");
+
             SetPluginSetting("ServerUrl", serverUrl);
             SetPluginSetting("AuthKey", authKey);
             _apiClient.Configure(serverUrl, authKey);
+
+            DebugLogger.Log("Calling RefreshDevicesAsync...");
             _ = RefreshDevicesAsync();
         }
 
         public async Task RefreshDevicesAsync()
         {
+            DebugLogger.Log("=== RefreshDevicesAsync called ===");
+
             if (!_apiClient.IsConfigured)
             {
-                System.Diagnostics.Debug.WriteLine("Shelly Plugin: API client not configured, skipping device refresh");
+                DebugLogger.Log("Shelly Plugin: API client not configured, skipping device refresh");
                 return;
             }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine("Shelly Plugin: Starting device refresh...");
+                DebugLogger.Log("Shelly Plugin: Starting device refresh...");
                 _devices = await _apiClient.GetDevicesAsync();
-                System.Diagnostics.Debug.WriteLine($"Shelly Plugin: Loaded {_devices.Count} devices");
+                DebugLogger.Log($"Shelly Plugin: Loaded {_devices.Count} devices");
                 OnDevicesUpdated();
-                System.Diagnostics.Debug.WriteLine("Shelly Plugin: Device refresh complete, parameters updated");
+                DebugLogger.Log("Shelly Plugin: Device refresh complete, parameters updated");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Shelly Plugin ERROR: {ex.StackTrace}");
+                DebugLogger.Log($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Log($"Shelly Plugin ERROR: {ex.StackTrace}");
 
                 // Show error to user
                 try
@@ -107,7 +126,8 @@ namespace ShellyLoupedeckPlugin
                         "- Server URL is correct\n" +
                         "- Authorization Key is valid\n" +
                         "- You have internet connection\n" +
-                        "- Shelly Cloud is reachable",
+                        "- Shelly Cloud is reachable\n\n" +
+                        "Log file: %LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
                         "Shelly API Error",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Error
