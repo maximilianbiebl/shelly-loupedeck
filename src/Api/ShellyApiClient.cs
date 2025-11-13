@@ -105,7 +105,9 @@ namespace ShellyLoupedeckPlugin.Api
                         }
 
                         devicesList.Add(device);
-                        DebugLogger.Log($"Shelly API: Added device {device.Id} ({device.Name}) - Type: {device.GetDeviceType()}");
+                        var deviceType = device.GetDeviceType();
+                        DebugLogger.Log($"Shelly API: Added device {device.Id} ({device.Name}) - Type: {deviceType}");
+                        DebugLogger.Log($"  - Has GetInfo: {device.GetInfo != null}, Has Lights: {device.Lights != null && device.Lights.Count > 0}, Has Relays: {device.Relays != null && device.Relays.Count > 0}, Has Thermostats: {device.Thermostats != null && device.Thermostats.Count > 0}");
                     }
 
                     DebugLogger.Log($"Shelly API: Returning {devicesList.Count} devices");

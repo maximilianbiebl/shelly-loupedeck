@@ -57,16 +57,47 @@ namespace ShellyLoupedeckPlugin.Models
             }
 
             // Fallback to old Type property
-            if (Type.Contains("RGBW2") || (App != null && App.Equals("RGBW", StringComparison.OrdinalIgnoreCase)))
-                return ShellyDeviceType.RGBW;
-            if (Type.IndexOf("Dimmer", StringComparison.OrdinalIgnoreCase) >= 0)
-                return ShellyDeviceType.Dimmer;
-            if (Type.IndexOf("TRV", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Thermostat", StringComparison.OrdinalIgnoreCase) >= 0)
-                return ShellyDeviceType.Thermostat;
-            if (Type.IndexOf("SNSW", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Plus 2PM", StringComparison.OrdinalIgnoreCase) >= 0)
-                return ShellyDeviceType.ShellyPlus2PM;
-            if (Type.IndexOf("Relay", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Switch", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (!string.IsNullOrEmpty(Type))
+            {
+                if (Type.Contains("RGBW2") || (App != null && App.Equals("RGBW", StringComparison.OrdinalIgnoreCase)))
+                    return ShellyDeviceType.RGBW;
+                if (Type.IndexOf("Dimmer", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return ShellyDeviceType.Dimmer;
+                if (Type.IndexOf("TRV", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Thermostat", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return ShellyDeviceType.Thermostat;
+                if (Type.IndexOf("SNSW", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Plus 2PM", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return ShellyDeviceType.ShellyPlus2PM;
+                if (Type.IndexOf("Relay", StringComparison.OrdinalIgnoreCase) >= 0 || Type.IndexOf("Switch", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return ShellyDeviceType.Switch;
+            }
+
+            // Check by capabilities - if has lights but no relays, it's likely RGBW
+            if (Lights != null && Lights.Count > 0)
+            {
+                // Has lights - could be RGBW or Dimmer
+                if (Relays == null || Relays.Count == 0)
+                {
+                    // No relays - likely RGBW bulb
+                    return ShellyDeviceType.RGBW;
+                }
+                else
+                {
+                    // Has both lights and relays - likely Dimmer
+                    return ShellyDeviceType.Dimmer;
+                }
+            }
+
+            // Check if has relays only - likely a switch
+            if (Relays != null && Relays.Count > 0)
+            {
                 return ShellyDeviceType.Switch;
+            }
+
+            // Check if has thermostats
+            if (Thermostats != null && Thermostats.Count > 0)
+            {
+                return ShellyDeviceType.Thermostat;
+            }
 
             return ShellyDeviceType.Unknown;
         }
