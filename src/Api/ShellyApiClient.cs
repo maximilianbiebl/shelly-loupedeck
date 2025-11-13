@@ -235,11 +235,20 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
-                DebugLogger.Log($"  SetRelayStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
+                var url = $"{_serverUrl}/device/relay/control";
 
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                // Send parameters as form-urlencoded POST body (NOT query string)
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("channel", channel.ToString()),
+                    new KeyValuePair<string, string>("turn", turn)
+                });
+
+                DebugLogger.Log($"  SetRelayStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                var response = await _httpClient.PostAsync(url, formContent);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -263,12 +272,20 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // Gen 3 devices - try ONLY turn parameter, no channel
-                var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
-                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
+                var url = $"{_serverUrl}/device/relay/control";
 
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                // Send parameters as form-urlencoded POST body (NOT query string)
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("channel", channel.ToString()),
+                    new KeyValuePair<string, string>("turn", turn)
+                });
+
+                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                var response = await _httpClient.PostAsync(url, formContent);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -292,12 +309,20 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // RGBW bulbs - try ONLY turn parameter, no other params
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
-                DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
+                var url = $"{_serverUrl}/device/light/control";
 
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                // Send parameters as form-urlencoded POST body (NOT query string)
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("channel", channel.ToString()),
+                    new KeyValuePair<string, string>("turn", turn)
+                });
+
+                DebugLogger.Log($"  SetLightStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                var response = await _httpClient.PostAsync(url, formContent);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
