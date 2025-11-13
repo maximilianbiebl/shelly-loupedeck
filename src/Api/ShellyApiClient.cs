@@ -238,7 +238,8 @@ namespace ShellyLoupedeckPlugin.Api
                 var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
                 DebugLogger.Log($"  SetRelayStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -266,7 +267,8 @@ namespace ShellyLoupedeckPlugin.Api
                 var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -294,7 +296,8 @@ namespace ShellyLoupedeckPlugin.Api
                 var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}&brightness=100";
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -319,7 +322,8 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var channelParam = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn=on&brightness={brightness}{channelParam}";
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -342,7 +346,8 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var channelParam = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelParam}";
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -364,7 +369,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var url = $"{_serverUrl}/device/thermostat/set_target_t?auth_key={_authKey}&id={deviceId}&target_t_enabled=1&target_t_value={temperature}";
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -386,7 +392,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var url = $"{_serverUrl}/device/thermostat/boost?auth_key={_authKey}&id={deviceId}&boost_minutes={minutes}";
-                var response = await _httpClient.GetAsync(url);
+                // Use POST instead of GET for control commands
+                var response = await _httpClient.PostAsync(url, null);
                 response.EnsureSuccessStatusCode();
 
                 return true;
