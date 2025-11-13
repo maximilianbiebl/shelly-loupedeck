@@ -81,16 +81,34 @@ namespace ShellyLoupedeckPlugin.Api
                         var device = kvp.Value;
                         device.Id = kvp.Key; // Set ID from dictionary key (MAC address)
 
-                        // Generate name if empty
-                        if (string.IsNullOrEmpty(device.Name) && device.GetInfo?.FwInfo?.Device != null)
+                        DebugLogger.Log($"  Device {device.Id}: Name from API = '{device.Name}', Settings.Name = '{device.Settings?.Name}'");
+
+                        // Try to get name from Settings first (where user-assigned names are stored)
+                        if (device.Settings != null && !string.IsNullOrWhiteSpace(device.Settings.Name))
                         {
-                            var deviceModelName = device.GetInfo.FwInfo.Device;
-                            var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
-                            device.Name = $"{deviceModelName} ({shortMac})";
+                            device.Name = device.Settings.Name;
+                            DebugLogger.Log($"    -> Using Settings.Name: {device.Name}");
                         }
-                        else if (string.IsNullOrEmpty(device.Name))
+                        // If still empty, try top-level name field
+                        else if (string.IsNullOrWhiteSpace(device.Name))
                         {
-                            device.Name = device.Id;
+                            // Generate name from device type if available
+                            if (device.GetInfo?.FwInfo?.Device != null)
+                            {
+                                var deviceModelName = device.GetInfo.FwInfo.Device;
+                                var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
+                                device.Name = $"{deviceModelName} ({shortMac})";
+                                DebugLogger.Log($"    -> Generated name from model: {device.Name}");
+                            }
+                            else
+                            {
+                                device.Name = device.Id;
+                                DebugLogger.Log($"    -> Using MAC as name: {device.Name}");
+                            }
+                        }
+                        else
+                        {
+                            DebugLogger.Log($"    -> Using top-level Name: {device.Name}");
                         }
 
                         // Create Status object for backward compatibility
@@ -102,6 +120,17 @@ namespace ShellyLoupedeckPlugin.Api
                                 Relays = device.Relays,
                                 Thermostats = device.Thermostats
                             };
+
+                            // For Gen 3 devices, convert switch components to relay status
+                            if (device.Switch0 != null && device.Relays == null)
+                            {
+                                device.Relays = new List<RelayStatus>
+                                {
+                                    new RelayStatus { IsOn = device.Switch0.Output }
+                                };
+                                device.Status.Relays = device.Relays;
+                                DebugLogger.Log($"    -> Converted Gen3 Switch0 to Relay (IsOn={device.Switch0.Output})");
+                            }
                         }
 
                         devicesList.Add(device);

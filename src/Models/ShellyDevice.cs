@@ -44,8 +44,25 @@ namespace ShellyLoupedeckPlugin.Models
         [JsonProperty("mac")]
         public string Mac { get; set; } = string.Empty;
 
+        // Gen 3 device components (component-based structure)
+        [JsonProperty("switch:0")]
+        public Gen3Component Switch0 { get; set; }
+
+        [JsonProperty("switch:1")]
+        public Gen3Component Switch1 { get; set; }
+
+        [JsonProperty("sys")]
+        public Gen3SysInfo Sys { get; set; }
+
         public ShellyDeviceType GetDeviceType()
         {
+            // Check for Gen 3 devices first (component-based structure)
+            if (Switch0 != null || Switch1 != null || Sys != null)
+            {
+                // Gen 3 device detected - it's a switch
+                return ShellyDeviceType.Switch;
+            }
+
             // Try to get type from getinfo first (all_status response)
             if (GetInfo?.FwInfo?.Device != null)
             {
@@ -53,7 +70,7 @@ namespace ShellyLoupedeckPlugin.Models
                 if (deviceType.Contains("rgbw")) return ShellyDeviceType.RGBW;
                 if (deviceType.Contains("dimmer")) return ShellyDeviceType.Dimmer;
                 if (deviceType.Contains("trv") || deviceType.Contains("thermostat")) return ShellyDeviceType.Thermostat;
-                if (deviceType.Contains("switch") || deviceType.Contains("plus")) return ShellyDeviceType.Switch;
+                if (deviceType.Contains("switch") || deviceType.Contains("plus") || deviceType.Contains("mini")) return ShellyDeviceType.Switch;
             }
 
             // Fallback to old Type property
@@ -248,6 +265,30 @@ namespace ShellyLoupedeckPlugin.Models
 
         [JsonProperty("is_valid")]
         public bool IsValid { get; set; }
+    }
+
+    public class Gen3Component
+    {
+        [JsonProperty("id")]
+        public int Id { get; set; }
+
+        [JsonProperty("output")]
+        public bool Output { get; set; }
+
+        [JsonProperty("source")]
+        public string Source { get; set; } = string.Empty;
+    }
+
+    public class Gen3SysInfo
+    {
+        [JsonProperty("mac")]
+        public string Mac { get; set; } = string.Empty;
+
+        [JsonProperty("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonProperty("fw_id")]
+        public string FirmwareId { get; set; } = string.Empty;
     }
 
     public enum ShellyDeviceType
