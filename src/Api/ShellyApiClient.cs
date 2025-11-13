@@ -464,7 +464,7 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("temp", temperature.ToString(CultureInfo.InvariantCulture))
                 });
 
-                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature}");
+                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature.ToString(CultureInfo.InvariantCulture)}");
 
                 var response = await _httpClient.PostAsync(url, formContent);
                 var responseContent = await response.Content.ReadAsStringAsync();
