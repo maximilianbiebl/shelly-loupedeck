@@ -263,8 +263,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // Gen 3 devices use /device/relay/control but without channel parameter
-                var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
+                // Gen 3 devices need channel parameter for Cloud API
+                var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 // Use POST instead of GET for control commands
@@ -292,8 +292,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // RGBW bulbs - try without channel parameter but keep brightness
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}&brightness=100";
+                // RGBW bulbs - use RGBW color parameters (white light for simple on/off)
+                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}&red=255&green=255&blue=255&white=255";
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 // Use POST instead of GET for control commands
