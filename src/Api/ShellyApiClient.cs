@@ -345,10 +345,23 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var channelParam = channel.HasValue ? $"&channel={channel.Value}" : "";
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn=on&brightness={brightness}{channelParam}";
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                var url = $"{_serverUrl}/device/light/control";
+
+                var formParams = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("turn", "on"),
+                    new KeyValuePair<string, string>("brightness", brightness.ToString())
+                };
+
+                if (channel.HasValue)
+                {
+                    formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
+                }
+
+                var formContent = new FormUrlEncodedContent(formParams);
+                var response = await _httpClient.PostAsync(url, formContent);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -369,10 +382,26 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var channelParam = channel.HasValue ? $"&channel={channel.Value}" : "";
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelParam}";
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                var url = $"{_serverUrl}/device/light/control";
+
+                var formParams = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("turn", "on"),
+                    new KeyValuePair<string, string>("red", red.ToString()),
+                    new KeyValuePair<string, string>("green", green.ToString()),
+                    new KeyValuePair<string, string>("blue", blue.ToString()),
+                    new KeyValuePair<string, string>("white", white.ToString())
+                };
+
+                if (channel.HasValue)
+                {
+                    formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
+                }
+
+                var formContent = new FormUrlEncodedContent(formParams);
+                var response = await _httpClient.PostAsync(url, formContent);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -393,9 +422,17 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var url = $"{_serverUrl}/device/thermostat/set_target_t?auth_key={_authKey}&id={deviceId}&target_t_enabled=1&target_t_value={temperature}";
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                var url = $"{_serverUrl}/device/thermostat/set_target_t";
+
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("target_t_enabled", "1"),
+                    new KeyValuePair<string, string>("target_t_value", temperature.ToString())
+                });
+
+                var response = await _httpClient.PostAsync(url, formContent);
                 response.EnsureSuccessStatusCode();
 
                 return true;
@@ -416,9 +453,16 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var url = $"{_serverUrl}/device/thermostat/boost?auth_key={_authKey}&id={deviceId}&boost_minutes={minutes}";
-                // Use POST instead of GET for control commands
-                var response = await _httpClient.PostAsync(url, null);
+                var url = $"{_serverUrl}/device/thermostat/boost";
+
+                var formContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("auth_key", _authKey),
+                    new KeyValuePair<string, string>("id", deviceId),
+                    new KeyValuePair<string, string>("boost_minutes", minutes.ToString())
+                });
+
+                var response = await _httpClient.PostAsync(url, formContent);
                 response.EnsureSuccessStatusCode();
 
                 return true;
