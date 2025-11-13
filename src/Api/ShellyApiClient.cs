@@ -292,8 +292,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // RGBW bulbs need channel and brightness parameters
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}&brightness=100";
+                // RGBW bulbs - try without channel parameter but keep brightness
+                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}&brightness=100";
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 // Use POST instead of GET for control commands
