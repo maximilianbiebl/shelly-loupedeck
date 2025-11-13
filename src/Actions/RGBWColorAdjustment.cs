@@ -92,29 +92,36 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            var parts = actionParameter.Split('_');
-            if (parts.Length < 2)
+            // Find which color key the parameter ends with
+            string colorKey = null;
+            string devicePart = null;
+
+            foreach (var key in _presetColors.Keys)
             {
-                DebugLogger.Log($"  -> Invalid parameter format (too few parts: {parts.Length}), returning");
+                if (actionParameter.EndsWith("_" + key))
+                {
+                    colorKey = key;
+                    devicePart = actionParameter.Substring(0, actionParameter.Length - key.Length - 1);
+                    break;
+                }
+            }
+
+            if (colorKey == null)
+            {
+                DebugLogger.Log($"  -> No valid color key found in parameter");
                 return;
             }
 
-            var colorKey = parts[parts.Length - 1]; // Last part is the color
             DebugLogger.Log($"  -> Color key: {colorKey}");
-
-            if (!_presetColors.ContainsKey(colorKey))
-            {
-                DebugLogger.Log($"  -> Color key not found in presets, returning");
-                return;
-            }
+            DebugLogger.Log($"  -> Device part: {devicePart}");
 
             var color = _presetColors[colorKey];
             DebugLogger.Log($"  -> Color values: R={color.R}, G={color.G}, B={color.B}, W={color.W}");
 
-            if (actionParameter.StartsWith("group_"))
+            if (devicePart.StartsWith("group_"))
             {
-                // Format: group_{groupId}_{colorKey}
-                var groupId = string.Join("_", parts.Skip(1).Take(parts.Length - 2).ToArray());
+                // Format: group_{groupId}
+                var groupId = devicePart.Substring(6);
                 DebugLogger.Log($"  -> Group action for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
@@ -133,10 +140,9 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             else
             {
-                // Format: {deviceId}_{colorKey}
-                var deviceId = string.Join("_", parts.Take(parts.Length - 1).ToArray());
-                DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
-                await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W);
+                // Format: {deviceId}
+                DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
+                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W);
             }
         }
 

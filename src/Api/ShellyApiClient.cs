@@ -432,17 +432,16 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var url = $"{_serverUrl}/device/thermostat/set_target_t";
+                var url = $"{_serverUrl}/device/thermostat/control";
 
                 var formContent = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
-                    new KeyValuePair<string, string>("target_t_enabled", "1"),
-                    new KeyValuePair<string, string>("target_t_value", temperature.ToString())
+                    new KeyValuePair<string, string>("temp", temperature.ToString())
                 });
 
-                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&target_t_enabled=1&target_t_value={temperature}");
+                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature}");
 
                 var response = await _httpClient.PostAsync(url, formContent);
                 var responseContent = await response.Content.ReadAsStringAsync();
