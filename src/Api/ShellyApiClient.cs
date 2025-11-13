@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -438,7 +439,7 @@ namespace ShellyLoupedeckPlugin.Api
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
-                    new KeyValuePair<string, string>("temp", temperature.ToString())
+                    new KeyValuePair<string, string>("temp", temperature.ToString(CultureInfo.InvariantCulture))
                 });
 
                 DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature}");

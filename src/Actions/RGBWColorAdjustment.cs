@@ -93,10 +93,11 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             // Find which color key the parameter ends with
+            // Sort keys by length descending to match longest keys first (e.g., "cool_white" before "white")
             string colorKey = null;
             string devicePart = null;
 
-            foreach (var key in _presetColors.Keys)
+            foreach (var key in _presetColors.Keys.OrderByDescending(k => k.Length))
             {
                 if (actionParameter.EndsWith("_" + key))
                 {
