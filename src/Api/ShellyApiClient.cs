@@ -63,8 +63,11 @@ namespace ShellyLoupedeckPlugin.Api
 
                 var content = await response.Content.ReadAsStringAsync();
                 System.Diagnostics.Debug.WriteLine($"Shelly API: Response content length: {content.Length}");
+                System.Diagnostics.Debug.WriteLine($"Shelly API: Raw JSON response: {content.Substring(0, Math.Min(500, content.Length))}");
 
                 var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
+
+                System.Diagnostics.Debug.WriteLine($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesList is null: {result?.Data?.DevicesList == null}");
 
                 if (result != null && result.Data != null && result.Data.DevicesList != null)
                 {
@@ -73,6 +76,12 @@ namespace ShellyLoupedeckPlugin.Api
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Shelly API: No devices found (null response data)");
+                System.Windows.Forms.MessageBox.Show(
+                    $"API Response received but no devices found.\n\nResponse preview:\n{content.Substring(0, Math.Min(300, content.Length))}\n\nCheck Loupedeck logs for full response.",
+                    "Shelly API - No Devices",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Warning
+                );
                 return new List<ShellyDevice>();
             }
             catch (Exception ex)
