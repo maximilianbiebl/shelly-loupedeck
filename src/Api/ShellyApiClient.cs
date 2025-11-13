@@ -53,27 +53,40 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                // Step 1: Get device names from /device/list
-                DebugLogger.Log($"Shelly API: Step 1 - Getting device names from /device/list");
-                var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
-                var listResponse = await _httpClient.GetAsync(listUrl);
-                var listContent = await listResponse.Content.ReadAsStringAsync();
-                listResponse.EnsureSuccessStatusCode();
-
-                var deviceListResult = JsonConvert.DeserializeObject<DeviceListResponse>(listContent);
+                // Step 1: Try to get device names from /device/list (optional, may not exist)
                 var deviceNames = new Dictionary<string, string>();
-
-                if (deviceListResult?.Data?.Devices != null)
+                try
                 {
-                    DebugLogger.Log($"Shelly API: Found {deviceListResult.Data.Devices.Count} devices in /device/list");
-                    foreach (var deviceInfo in deviceListResult.Data.Devices)
+                    DebugLogger.Log($"Shelly API: Step 1 - Trying to get device names from /device/list");
+                    var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
+                    var listResponse = await _httpClient.GetAsync(listUrl);
+
+                    if (listResponse.IsSuccessStatusCode)
                     {
-                        if (!string.IsNullOrWhiteSpace(deviceInfo.Name))
+                        var listContent = await listResponse.Content.ReadAsStringAsync();
+                        var deviceListResult = JsonConvert.DeserializeObject<DeviceListResponse>(listContent);
+
+                        if (deviceListResult?.Data?.Devices != null)
                         {
-                            deviceNames[deviceInfo.Id] = deviceInfo.Name;
-                            DebugLogger.Log($"  Device {deviceInfo.Id}: Name = '{deviceInfo.Name}'");
+                            DebugLogger.Log($"Shelly API: Found {deviceListResult.Data.Devices.Count} devices in /device/list");
+                            foreach (var deviceInfo in deviceListResult.Data.Devices)
+                            {
+                                if (!string.IsNullOrWhiteSpace(deviceInfo.Name))
+                                {
+                                    deviceNames[deviceInfo.Id] = deviceInfo.Name;
+                                    DebugLogger.Log($"  Device {deviceInfo.Id}: Name = '{deviceInfo.Name}'");
+                                }
+                            }
                         }
                     }
+                    else
+                    {
+                        DebugLogger.Log($"Shelly API: /device/list returned {listResponse.StatusCode}, skipping name lookup");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"Shelly API: /device/list not available ({ex.Message}), will use fallback names");
                 }
 
                 // Step 2: Get device statuses from /device/all_status
