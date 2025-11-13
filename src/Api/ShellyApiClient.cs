@@ -68,12 +68,48 @@ namespace ShellyLoupedeckPlugin.Api
 
                 var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
 
-                DebugLogger.Log($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesList is null: {result?.Data?.DevicesList == null}");
+                DebugLogger.Log($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesStatus is null: {result?.Data?.DevicesStatus == null}");
 
-                if (result != null && result.Data != null && result.Data.DevicesList != null)
+                if (result != null && result.Data != null && result.Data.DevicesStatus != null)
                 {
-                    DebugLogger.Log($"Shelly API: Found {result.Data.DevicesList.Count} devices");
-                    return result.Data.DevicesList;
+                    DebugLogger.Log($"Shelly API: Found {result.Data.DevicesStatus.Count} devices in dictionary");
+
+                    // Convert dictionary to list and set IDs from keys
+                    var devicesList = new List<ShellyDevice>();
+                    foreach (var kvp in result.Data.DevicesStatus)
+                    {
+                        var device = kvp.Value;
+                        device.Id = kvp.Key; // Set ID from dictionary key (MAC address)
+
+                        // Generate name if empty
+                        if (string.IsNullOrEmpty(device.Name) && device.GetInfo?.FwInfo?.Device != null)
+                        {
+                            var deviceType = device.GetInfo.FwInfo.Device;
+                            var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
+                            device.Name = $"{deviceType} ({shortMac})";
+                        }
+                        else if (string.IsNullOrEmpty(device.Name))
+                        {
+                            device.Name = device.Id;
+                        }
+
+                        // Create Status object for backward compatibility
+                        if (device.Status == null)
+                        {
+                            device.Status = new DeviceStatus
+                            {
+                                Lights = device.Lights,
+                                Relays = device.Relays,
+                                Thermostats = device.Thermostats
+                            };
+                        }
+
+                        devicesList.Add(device);
+                        DebugLogger.Log($"Shelly API: Added device {device.Id} ({device.Name}) - Type: {device.GetDeviceType()}");
+                    }
+
+                    DebugLogger.Log($"Shelly API: Returning {devicesList.Count} devices");
+                    return devicesList;
                 }
 
                 DebugLogger.Log($"Shelly API: No devices found (null response data)");
@@ -247,8 +283,8 @@ namespace ShellyLoupedeckPlugin.Api
 
     public class DeviceListData
     {
-        [JsonProperty("devices")]
-        public List<ShellyDevice> DevicesList { get; set; } = new List<ShellyDevice>();
+        [JsonProperty("devices_status")]
+        public Dictionary<string, ShellyDevice> DevicesStatus { get; set; } = new Dictionary<string, ShellyDevice>();
     }
 
     public class DeviceStatusResponse

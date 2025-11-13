@@ -21,14 +21,42 @@ namespace ShellyLoupedeckPlugin.Models
         [JsonProperty("online")]
         public bool Online { get; set; }
 
+        // Old structure compatibility
         [JsonProperty("status")]
         public DeviceStatus Status { get; set; }
 
         [JsonProperty("settings")]
         public DeviceSettings Settings { get; set; }
 
+        // Direct fields from all_status response
+        [JsonProperty("lights")]
+        public List<LightStatus> Lights { get; set; }
+
+        [JsonProperty("relays")]
+        public List<RelayStatus> Relays { get; set; }
+
+        [JsonProperty("thermostats")]
+        public List<ThermostatStatus> Thermostats { get; set; }
+
+        [JsonProperty("getinfo")]
+        public GetInfoData GetInfo { get; set; }
+
+        [JsonProperty("mac")]
+        public string Mac { get; set; } = string.Empty;
+
         public ShellyDeviceType GetDeviceType()
         {
+            // Try to get type from getinfo first (all_status response)
+            if (GetInfo?.FwInfo?.Device != null)
+            {
+                var deviceType = GetInfo.FwInfo.Device.ToLower();
+                if (deviceType.Contains("rgbw")) return ShellyDeviceType.RGBW;
+                if (deviceType.Contains("dimmer")) return ShellyDeviceType.Dimmer;
+                if (deviceType.Contains("trv") || deviceType.Contains("thermostat")) return ShellyDeviceType.Thermostat;
+                if (deviceType.Contains("switch") || deviceType.Contains("plus")) return ShellyDeviceType.Switch;
+            }
+
+            // Fallback to old Type property
             if (Type.Contains("RGBW2") || (App != null && App.Equals("RGBW", StringComparison.OrdinalIgnoreCase)))
                 return ShellyDeviceType.RGBW;
             if (Type.IndexOf("Dimmer", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -42,6 +70,21 @@ namespace ShellyLoupedeckPlugin.Models
 
             return ShellyDeviceType.Unknown;
         }
+    }
+
+    public class GetInfoData
+    {
+        [JsonProperty("fw_info")]
+        public FirmwareInfo FwInfo { get; set; }
+    }
+
+    public class FirmwareInfo
+    {
+        [JsonProperty("device")]
+        public string Device { get; set; } = string.Empty;
+
+        [JsonProperty("fw")]
+        public string Firmware { get; set; } = string.Empty;
     }
 
     public class DeviceStatus
