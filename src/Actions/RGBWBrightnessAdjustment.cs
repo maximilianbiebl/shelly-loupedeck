@@ -136,10 +136,10 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             var oldBrightness = _currentBrightness[deviceId];
-            var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + (diff * 5)));
+            var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + diff));
             _currentBrightness[deviceId] = newBrightness;
 
-            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=5)");
+            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
             DebugLogger.Log($"    -> Calling SetLightBrightnessAsync...");
 
             await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);

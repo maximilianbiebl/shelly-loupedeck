@@ -61,12 +61,12 @@ namespace ShellyLoupedeckPlugin
                 _groups = new List<DeviceGroup>();
             }
 
-            // Start periodic refresh (every 30 seconds)
+            // Start periodic refresh (every 5 seconds)
             _refreshTimer = new System.Threading.Timer(
                 async _ => await RefreshDevicesAsync(),
                 null,
-                TimeSpan.FromSeconds(30),
-                TimeSpan.FromSeconds(30)
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5)
             );
 
             base.Load();
