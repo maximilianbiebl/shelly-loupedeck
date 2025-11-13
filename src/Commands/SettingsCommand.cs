@@ -49,6 +49,19 @@ namespace ShellyLoupedeckPlugin.Commands
             if (dialog.SaveClicked)
             {
                 _plugin.SaveConfiguration(dialog.ServerUrl, dialog.AuthKey);
+
+                // Show confirmation
+                System.Windows.Forms.MessageBox.Show(
+                    "Settings saved! The plugin will now try to load your devices.\n\n" +
+                    "If you don't see your devices, please check:\n" +
+                    "- Server URL is correct (e.g., https://shelly-28-eu.shelly.cloud)\n" +
+                    "- Authorization Key is correct\n" +
+                    "- You have internet connection\n\n" +
+                    "Check the Loupedeck logs for any errors.",
+                    "Shelly Settings Saved",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Information
+                );
             }
         }
 

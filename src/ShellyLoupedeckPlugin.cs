@@ -81,16 +81,42 @@ namespace ShellyLoupedeckPlugin
         public async Task RefreshDevicesAsync()
         {
             if (!_apiClient.IsConfigured)
+            {
+                System.Diagnostics.Debug.WriteLine("Shelly Plugin: API client not configured, skipping device refresh");
                 return;
+            }
 
             try
             {
+                System.Diagnostics.Debug.WriteLine("Shelly Plugin: Starting device refresh...");
                 _devices = await _apiClient.GetDevicesAsync();
+                System.Diagnostics.Debug.WriteLine($"Shelly Plugin: Loaded {_devices.Count} devices");
                 OnDevicesUpdated();
+                System.Diagnostics.Debug.WriteLine("Shelly Plugin: Device refresh complete, parameters updated");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error refreshing devices: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Shelly Plugin ERROR: {ex.StackTrace}");
+
+                // Show error to user
+                try
+                {
+                    System.Windows.Forms.MessageBox.Show(
+                        $"Failed to load Shelly devices:\n\n{ex.Message}\n\nPlease check:\n" +
+                        "- Server URL is correct\n" +
+                        "- Authorization Key is valid\n" +
+                        "- You have internet connection\n" +
+                        "- Shelly Cloud is reachable",
+                        "Shelly API Error",
+                        System.Windows.Forms.MessageBoxButtons.OK,
+                        System.Windows.Forms.MessageBoxIcon.Error
+                    );
+                }
+                catch
+                {
+                    // Ignore if message box fails
+                }
             }
         }
 

@@ -54,22 +54,32 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var url = $"{_serverUrl}/device/list?auth_key={_authKey}";
+                System.Diagnostics.Debug.WriteLine($"Shelly API: Requesting devices from {_serverUrl}");
+
                 var response = await _httpClient.GetAsync(url);
+                System.Diagnostics.Debug.WriteLine($"Shelly API: Response status {response.StatusCode}");
+
                 response.EnsureSuccessStatusCode();
 
                 var content = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine($"Shelly API: Response content length: {content.Length}");
+
                 var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
 
                 if (result != null && result.Data != null && result.Data.DevicesList != null)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Shelly API: Found {result.Data.DevicesList.Count} devices");
                     return result.Data.DevicesList;
                 }
+
+                System.Diagnostics.Debug.WriteLine($"Shelly API: No devices found (null response data)");
                 return new List<ShellyDevice>();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting devices: {ex.Message}");
-                return new List<ShellyDevice>();
+                System.Diagnostics.Debug.WriteLine($"Shelly API ERROR: {ex.GetType().Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Shelly API ERROR Stack: {ex.StackTrace}");
+                throw; // Re-throw so caller can handle
             }
         }
 
