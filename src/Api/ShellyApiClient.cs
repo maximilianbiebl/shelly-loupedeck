@@ -53,7 +53,7 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var url = $"{_serverUrl}/device/list?auth_key={_authKey}";
+                var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
                 System.Diagnostics.Debug.WriteLine($"Shelly API: Requesting devices from {_serverUrl}");
 
                 var response = await _httpClient.GetAsync(url);
