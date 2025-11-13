@@ -147,26 +147,10 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"    -> Current state: {(isOn ? "ON" : "OFF")}, toggling to: {(isOn ? "OFF" : "ON")}");
             DebugLogger.Log($"    -> Device type: {deviceType}");
 
-            // Check if this is a Gen 3 device
-            bool isGen3 = device.Switch0 != null || device.Sys != null;
-            DebugLogger.Log($"    -> Is Gen3 device: {isGen3}");
-
-            bool success = false;
-            if (deviceType == ShellyDeviceType.RGBW)
-            {
-                DebugLogger.Log($"    -> Calling API SetLightStateAsync...");
-                success = await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, !isOn);
-            }
-            else if (isGen3)
-            {
-                DebugLogger.Log($"    -> Calling API SetGen3SwitchStateAsync...");
-                success = await _plugin.ApiClient.SetGen3SwitchStateAsync(deviceId, 0, !isOn);
-            }
-            else
-            {
-                DebugLogger.Log($"    -> Calling API SetRelayStateAsync...");
-                success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !isOn);
-            }
+            // Shelly Cloud API uses /device/relay/control for ALL device types
+            // (RGBW, Gen3 switches, Gen1/2 switches, etc.)
+            DebugLogger.Log($"    -> Calling API SetRelayStateAsync (unified Cloud API endpoint)...");
+            bool success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !isOn);
             DebugLogger.Log($"    -> API call completed, success = {success}");
 
             // Refresh device status
