@@ -85,23 +85,35 @@ namespace ShellyLoupedeckPlugin.Actions
 
         protected override async void ApplyAdjustment(string actionParameter, int diff)
         {
+            DebugLogger.Log($"=== ThermostatAdjustment: ApplyAdjustment called with parameter: {actionParameter}, diff: {diff} ===");
+
             if (string.IsNullOrEmpty(actionParameter))
+            {
+                DebugLogger.Log("  -> Parameter is null or empty, returning");
                 return;
+            }
 
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
+                DebugLogger.Log($"  -> Group adjustment for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
                         await AdjustDeviceTemperatureAsync(deviceId, diff);
                     }
                 }
+                else
+                {
+                    DebugLogger.Log($"  -> Group not found!");
+                }
             }
             else
             {
+                DebugLogger.Log($"  -> Device adjustment for device ID: {actionParameter}");
                 await AdjustDeviceTemperatureAsync(actionParameter, diff);
             }
 
@@ -110,21 +122,29 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private async Task AdjustDeviceTemperatureAsync(string deviceId, int diff)
         {
+            DebugLogger.Log($"    -> AdjustDeviceTemperatureAsync called for device: {deviceId}, diff: {diff}");
+
             if (!_currentTemperature.ContainsKey(deviceId))
             {
                 var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                 if (device?.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
                 {
                     _currentTemperature[deviceId] = device.Status.Thermostats[0].TargetTemperature?.Value ?? 20.0;
+                    DebugLogger.Log($"    -> Initialized temperature from device status: {_currentTemperature[deviceId]}°C");
                 }
                 else
                 {
                     _currentTemperature[deviceId] = 20.0;
+                    DebugLogger.Log($"    -> Device status not available, defaulting to 20.0°C");
                 }
             }
 
+            var oldTemperature = _currentTemperature[deviceId];
             var newTemperature = Math.Max(5.0, Math.Min(30.0, _currentTemperature[deviceId] + (diff * 0.5)));
             _currentTemperature[deviceId] = newTemperature;
+
+            DebugLogger.Log($"    -> Temperature: {oldTemperature}°C -> {newTemperature}°C (diff={diff}, step=0.5)");
+            DebugLogger.Log($"    -> Calling SetThermostatTemperatureAsync...");
 
             await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemperature);
         }

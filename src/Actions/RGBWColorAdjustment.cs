@@ -84,36 +84,58 @@ namespace ShellyLoupedeckPlugin.Actions
 
         protected override async void RunCommand(string actionParameter)
         {
+            DebugLogger.Log($"=== RGBWColorAdjustment: RunCommand called with parameter: {actionParameter} ===");
+
             if (string.IsNullOrEmpty(actionParameter))
+            {
+                DebugLogger.Log("  -> Parameter is null or empty, returning");
                 return;
+            }
 
             var parts = actionParameter.Split('_');
             if (parts.Length < 2)
+            {
+                DebugLogger.Log($"  -> Invalid parameter format (too few parts: {parts.Length}), returning");
                 return;
+            }
 
             var colorKey = parts[parts.Length - 1]; // Last part is the color
+            DebugLogger.Log($"  -> Color key: {colorKey}");
+
             if (!_presetColors.ContainsKey(colorKey))
+            {
+                DebugLogger.Log($"  -> Color key not found in presets, returning");
                 return;
+            }
 
             var color = _presetColors[colorKey];
+            DebugLogger.Log($"  -> Color values: R={color.R}, G={color.G}, B={color.B}, W={color.W}");
 
             if (actionParameter.StartsWith("group_"))
             {
                 // Format: group_{groupId}_{colorKey}
                 var groupId = string.Join("_", parts.Skip(1).Take(parts.Length - 2).ToArray());
+                DebugLogger.Log($"  -> Group action for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
+                        DebugLogger.Log($"    -> Setting color for device: {deviceId}");
                         await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W);
                     }
+                }
+                else
+                {
+                    DebugLogger.Log($"  -> Group not found!");
                 }
             }
             else
             {
                 // Format: {deviceId}_{colorKey}
                 var deviceId = string.Join("_", parts.Take(parts.Length - 1).ToArray());
+                DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
                 await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W);
             }
         }

@@ -360,15 +360,20 @@ namespace ShellyLoupedeckPlugin.Api
                     formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
                 }
 
+                var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
+                DebugLogger.Log($"  SetLightBrightnessAsync: URL = {url}, Body = id={deviceId}&turn=on&brightness={brightness}{channelStr}");
+
                 var formContent = new FormUrlEncodedContent(formParams);
                 var response = await _httpClient.PostAsync(url, formContent);
-                response.EnsureSuccessStatusCode();
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetLightBrightnessAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
+                response.EnsureSuccessStatusCode();
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting light brightness: {ex.Message}");
+                DebugLogger.Log($"  SetLightBrightnessAsync ERROR: {ex.Message}");
                 return false;
             }
         }
@@ -400,15 +405,20 @@ namespace ShellyLoupedeckPlugin.Api
                     formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
                 }
 
+                var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
+                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}");
+
                 var formContent = new FormUrlEncodedContent(formParams);
                 var response = await _httpClient.PostAsync(url, formContent);
-                response.EnsureSuccessStatusCode();
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetLightColorAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
+                response.EnsureSuccessStatusCode();
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting light color: {ex.Message}");
+                DebugLogger.Log($"  SetLightColorAsync ERROR: {ex.Message}");
                 return false;
             }
         }
@@ -432,14 +442,18 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("target_t_value", temperature.ToString())
                 });
 
-                var response = await _httpClient.PostAsync(url, formContent);
-                response.EnsureSuccessStatusCode();
+                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&target_t_enabled=1&target_t_value={temperature}");
 
+                var response = await _httpClient.PostAsync(url, formContent);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetThermostatTemperatureAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                response.EnsureSuccessStatusCode();
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting thermostat temperature: {ex.Message}");
+                DebugLogger.Log($"  SetThermostatTemperatureAsync ERROR: {ex.Message}");
                 return false;
             }
         }
@@ -462,14 +476,18 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("boost_minutes", minutes.ToString())
                 });
 
-                var response = await _httpClient.PostAsync(url, formContent);
-                response.EnsureSuccessStatusCode();
+                DebugLogger.Log($"  SetThermostatBoostAsync: URL = {url}, Body = id={deviceId}&boost_minutes={minutes}");
 
+                var response = await _httpClient.PostAsync(url, formContent);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetThermostatBoostAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                response.EnsureSuccessStatusCode();
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting thermostat boost: {ex.Message}");
+                DebugLogger.Log($"  SetThermostatBoostAsync ERROR: {ex.Message}");
                 return false;
             }
         }

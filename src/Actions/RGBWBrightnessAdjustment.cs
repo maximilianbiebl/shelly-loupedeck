@@ -81,23 +81,35 @@ namespace ShellyLoupedeckPlugin.Actions
 
         protected override async void ApplyAdjustment(string actionParameter, int diff)
         {
+            DebugLogger.Log($"=== RGBWBrightnessAdjustment: ApplyAdjustment called with parameter: {actionParameter}, diff: {diff} ===");
+
             if (string.IsNullOrEmpty(actionParameter))
+            {
+                DebugLogger.Log("  -> Parameter is null or empty, returning");
                 return;
+            }
 
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
+                DebugLogger.Log($"  -> Group adjustment for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
                         await AdjustDeviceBrightnessAsync(deviceId, diff);
                     }
                 }
+                else
+                {
+                    DebugLogger.Log($"  -> Group not found!");
+                }
             }
             else
             {
+                DebugLogger.Log($"  -> Device adjustment for device ID: {actionParameter}");
                 await AdjustDeviceBrightnessAsync(actionParameter, diff);
             }
 
@@ -106,21 +118,29 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private async Task AdjustDeviceBrightnessAsync(string deviceId, int diff)
         {
+            DebugLogger.Log($"    -> AdjustDeviceBrightnessAsync called for device: {deviceId}, diff: {diff}");
+
             if (!_currentBrightness.ContainsKey(deviceId))
             {
                 var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                 if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                 {
                     _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
+                    DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
                 }
                 else
                 {
                     _currentBrightness[deviceId] = 50;
+                    DebugLogger.Log($"    -> Device status not available, defaulting to 50");
                 }
             }
 
+            var oldBrightness = _currentBrightness[deviceId];
             var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + (diff * 5)));
             _currentBrightness[deviceId] = newBrightness;
+
+            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=5)");
+            DebugLogger.Log($"    -> Calling SetLightBrightnessAsync...");
 
             await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
         }
