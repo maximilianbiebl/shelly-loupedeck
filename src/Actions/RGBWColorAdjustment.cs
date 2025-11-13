@@ -19,8 +19,8 @@ namespace ShellyLoupedeckPlugin.Actions
             { "yellow", (255, 255, 0, 0) },
             { "cyan", (0, 255, 255, 0) },
             { "magenta", (255, 0, 255, 0) },
-            { "warm_white", (255, 200, 150, 100) },
-            { "cool_white", (200, 220, 255, 100) }
+            { "warm_white", (0, 0, 0, 255) },
+            { "cool_white", (0, 0, 0, 200) }
         };
 
         public RGBWColorAdjustment() : base()
