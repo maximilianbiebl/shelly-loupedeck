@@ -84,9 +84,9 @@ namespace ShellyLoupedeckPlugin.Api
                         // Generate name if empty
                         if (string.IsNullOrEmpty(device.Name) && device.GetInfo?.FwInfo?.Device != null)
                         {
-                            var deviceType = device.GetInfo.FwInfo.Device;
+                            var deviceModelName = device.GetInfo.FwInfo.Device;
                             var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
-                            device.Name = $"{deviceType} ({shortMac})";
+                            device.Name = $"{deviceModelName} ({shortMac})";
                         }
                         else if (string.IsNullOrEmpty(device.Name))
                         {
