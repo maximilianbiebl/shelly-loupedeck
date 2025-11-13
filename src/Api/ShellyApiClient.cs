@@ -53,10 +53,32 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
-                DebugLogger.Log($"Shelly API: Requesting devices from {_serverUrl}");
-                DebugLogger.Log($"Shelly API: Full URL: {url}");
+                // Step 1: Get device names from /device/list
+                DebugLogger.Log($"Shelly API: Step 1 - Getting device names from /device/list");
+                var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
+                var listResponse = await _httpClient.GetAsync(listUrl);
+                var listContent = await listResponse.Content.ReadAsStringAsync();
+                listResponse.EnsureSuccessStatusCode();
 
+                var deviceListResult = JsonConvert.DeserializeObject<DeviceListResponse>(listContent);
+                var deviceNames = new Dictionary<string, string>();
+
+                if (deviceListResult?.Data?.Devices != null)
+                {
+                    DebugLogger.Log($"Shelly API: Found {deviceListResult.Data.Devices.Count} devices in /device/list");
+                    foreach (var deviceInfo in deviceListResult.Data.Devices)
+                    {
+                        if (!string.IsNullOrWhiteSpace(deviceInfo.Name))
+                        {
+                            deviceNames[deviceInfo.Id] = deviceInfo.Name;
+                            DebugLogger.Log($"  Device {deviceInfo.Id}: Name = '{deviceInfo.Name}'");
+                        }
+                    }
+                }
+
+                // Step 2: Get device statuses from /device/all_status
+                DebugLogger.Log($"Shelly API: Step 2 - Getting device statuses from /device/all_status");
+                var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
                 var response = await _httpClient.GetAsync(url);
                 DebugLogger.Log($"Shelly API: Response status {response.StatusCode}");
 
@@ -64,9 +86,8 @@ namespace ShellyLoupedeckPlugin.Api
 
                 var content = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"Shelly API: Response content length: {content.Length}");
-                DebugLogger.Log($"Shelly API: Raw JSON response: {content}");
 
-                var result = JsonConvert.DeserializeObject<DeviceListResponse>(content);
+                var result = JsonConvert.DeserializeObject<AllStatusResponse>(content);
 
                 DebugLogger.Log($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesStatus is null: {result?.Data?.DevicesStatus == null}");
 
@@ -81,15 +102,17 @@ namespace ShellyLoupedeckPlugin.Api
                         var device = kvp.Value;
                         device.Id = kvp.Key; // Set ID from dictionary key (MAC address)
 
-                        DebugLogger.Log($"  Device {device.Id}: Name from API = '{device.Name}', Settings.Name = '{device.Settings?.Name}'");
-
-                        // Try to get name from Settings first (where user-assigned names are stored)
-                        if (device.Settings != null && !string.IsNullOrWhiteSpace(device.Settings.Name))
+                        // Use name from /device/list if available
+                        if (deviceNames.ContainsKey(device.Id))
+                        {
+                            device.Name = deviceNames[device.Id];
+                            DebugLogger.Log($"  Device {device.Id}: Using name from /device/list: '{device.Name}'");
+                        }
+                        else if (device.Settings != null && !string.IsNullOrWhiteSpace(device.Settings.Name))
                         {
                             device.Name = device.Settings.Name;
-                            DebugLogger.Log($"    -> Using Settings.Name: {device.Name}");
+                            DebugLogger.Log($"  Device {device.Id}: Using Settings.Name: {device.Name}");
                         }
-                        // If still empty, try top-level name field
                         else if (string.IsNullOrWhiteSpace(device.Name))
                         {
                             // Generate name from device type if available
@@ -98,17 +121,17 @@ namespace ShellyLoupedeckPlugin.Api
                                 var deviceModelName = device.GetInfo.FwInfo.Device;
                                 var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
                                 device.Name = $"{deviceModelName} ({shortMac})";
-                                DebugLogger.Log($"    -> Generated name from model: {device.Name}");
+                                DebugLogger.Log($"  Device {device.Id}: Generated name from model: {device.Name}");
                             }
                             else
                             {
                                 device.Name = device.Id;
-                                DebugLogger.Log($"    -> Using MAC as name: {device.Name}");
+                                DebugLogger.Log($"  Device {device.Id}: Using MAC as name: {device.Name}");
                             }
                         }
                         else
                         {
-                            DebugLogger.Log($"    -> Using top-level Name: {device.Name}");
+                            DebugLogger.Log($"  Device {device.Id}: Using existing name: {device.Name}");
                         }
 
                         // Create Status object for backward compatibility
@@ -216,6 +239,34 @@ namespace ShellyLoupedeckPlugin.Api
             }
         }
 
+        public async Task<bool> SetGen3SwitchStateAsync(string deviceId, int channel, bool turnOn)
+        {
+            if (!IsConfigured)
+                throw new InvalidOperationException("API client not configured");
+
+            await RateLimitAsync();
+
+            try
+            {
+                var turn = turnOn ? "on" : "off";
+                // Gen 3 devices use /device/control endpoint
+                var url = $"{_serverUrl}/device/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
+                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
+
+                var response = await _httpClient.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                response.EnsureSuccessStatusCode();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"  SetGen3SwitchStateAsync ERROR: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<bool> SetLightStateAsync(string deviceId, int channel, bool turnOn)
         {
             if (!IsConfigured)
@@ -226,7 +277,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
+                // Don't include channel parameter - it causes "wrong_control" error for RGBW bulbs
+                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 var response = await _httpClient.GetAsync(url);
@@ -335,6 +387,30 @@ namespace ShellyLoupedeckPlugin.Api
     }
 
     public class DeviceListResponse
+    {
+        [JsonProperty("isok")]
+        public bool IsOk { get; set; }
+
+        [JsonProperty("data")]
+        public DeviceListDataSimple Data { get; set; }
+    }
+
+    public class DeviceListDataSimple
+    {
+        [JsonProperty("devices")]
+        public List<DeviceInfo> Devices { get; set; } = new List<DeviceInfo>();
+    }
+
+    public class DeviceInfo
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonProperty("name")]
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class AllStatusResponse
     {
         [JsonProperty("isok")]
         public bool IsOk { get; set; }
