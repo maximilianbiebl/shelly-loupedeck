@@ -379,67 +379,31 @@ namespace ShellyLoupedeckPlugin.Api
             }
         }
 
-        public async Task<bool> SetRGBWModeAsync(string deviceId, string mode)
-        {
-            if (!IsConfigured)
-                throw new InvalidOperationException("API client not configured");
-
-            await RateLimitAsync();
-
-            try
-            {
-                var url = $"{_serverUrl}/device/settings/set";
-
-                var formContent = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string, string>("auth_key", _authKey),
-                    new KeyValuePair<string, string>("id", deviceId),
-                    new KeyValuePair<string, string>("mode", mode)
-                });
-
-                DebugLogger.Log($"  SetRGBWModeAsync: URL = {url}, Body = id={deviceId}&mode={mode}");
-
-                var response = await _httpClient.PostAsync(url, formContent);
-                var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetRGBWModeAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
-
-                response.EnsureSuccessStatusCode();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"  SetRGBWModeAsync ERROR: {ex.Message}");
-                return false;
-            }
-        }
-
         public async Task<bool> SetLightColorAsync(string deviceId, int red, int green, int blue, int white, int? channel = null)
         {
             if (!IsConfigured)
                 throw new InvalidOperationException("API client not configured");
-
-            // Determine required mode based on color values
-            // If using RGB colors (any R/G/B > 0), switch to color mode
-            // If using white only (R=G=B=0, W > 0), switch to white mode
-            bool isColorMode = (red > 0 || green > 0 || blue > 0);
-            bool isWhiteMode = (red == 0 && green == 0 && blue == 0 && white > 0);
-
-            if (isColorMode)
-            {
-                DebugLogger.Log($"  SetLightColorAsync: Detected COLOR mode (R={red}, G={green}, B={blue}), switching to color mode first");
-                await SetRGBWModeAsync(deviceId, "color");
-            }
-            else if (isWhiteMode)
-            {
-                DebugLogger.Log($"  SetLightColorAsync: Detected WHITE mode (W={white}), switching to white mode first");
-                await SetRGBWModeAsync(deviceId, "white");
-            }
 
             await RateLimitAsync();
 
             try
             {
                 var url = $"{_serverUrl}/device/light/control";
+
+                // Determine required mode based on color values
+                // If using RGB colors (any R/G/B > 0), use color mode
+                // If using white only (R=G=B=0, W > 0), use white mode
+                string mode = null;
+                if (red > 0 || green > 0 || blue > 0)
+                {
+                    mode = "color";
+                    DebugLogger.Log($"  SetLightColorAsync: Detected COLOR mode (R={red}, G={green}, B={blue}), adding mode=color parameter");
+                }
+                else if (red == 0 && green == 0 && blue == 0 && white > 0)
+                {
+                    mode = "white";
+                    DebugLogger.Log($"  SetLightColorAsync: Detected WHITE mode (W={white}), adding mode=white parameter");
+                }
 
                 var formParams = new List<KeyValuePair<string, string>>
                 {
@@ -457,8 +421,15 @@ namespace ShellyLoupedeckPlugin.Api
                     formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
                 }
 
+                // Add mode parameter if detected
+                if (mode != null)
+                {
+                    formParams.Add(new KeyValuePair<string, string>("mode", mode));
+                }
+
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
-                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}");
+                var modeStr = mode != null ? $"&mode={mode}" : "";
+                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}");
 
                 var formContent = new FormUrlEncodedContent(formParams);
                 var response = await _httpClient.PostAsync(url, formContent);
