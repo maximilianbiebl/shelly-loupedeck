@@ -200,14 +200,45 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
-                var response = await _httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                DebugLogger.Log($"  SetRelayStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
+                var response = await _httpClient.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                response.EnsureSuccessStatusCode();
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error setting relay state: {ex.Message}");
+                DebugLogger.Log($"  SetRelayStateAsync ERROR: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SetLightStateAsync(string deviceId, int channel, bool turnOn)
+        {
+            if (!IsConfigured)
+                throw new InvalidOperationException("API client not configured");
+
+            await RateLimitAsync();
+
+            try
+            {
+                var turn = turnOn ? "on" : "off";
+                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
+                DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
+
+                var response = await _httpClient.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                response.EnsureSuccessStatusCode();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"  SetLightStateAsync ERROR: {ex.Message}");
                 return false;
             }
         }

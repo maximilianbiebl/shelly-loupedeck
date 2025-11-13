@@ -142,12 +142,23 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             DebugLogger.Log($"    -> Found device: {device.Name}");
+            var deviceType = device.GetDeviceType();
             var isOn = GetDeviceState(device);
             DebugLogger.Log($"    -> Current state: {(isOn ? "ON" : "OFF")}, toggling to: {(isOn ? "OFF" : "ON")}");
+            DebugLogger.Log($"    -> Device type: {deviceType}");
 
-            DebugLogger.Log($"    -> Calling API SetRelayStateAsync...");
-            await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !isOn);
-            DebugLogger.Log($"    -> API call completed");
+            bool success = false;
+            if (deviceType == ShellyDeviceType.RGBW)
+            {
+                DebugLogger.Log($"    -> Calling API SetLightStateAsync...");
+                success = await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, !isOn);
+            }
+            else
+            {
+                DebugLogger.Log($"    -> Calling API SetRelayStateAsync...");
+                success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !isOn);
+            }
+            DebugLogger.Log($"    -> API call completed, success = {success}");
 
             // Refresh device status
             DebugLogger.Log($"    -> Waiting 500ms before status refresh...");
