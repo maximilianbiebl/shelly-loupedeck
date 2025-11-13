@@ -12,7 +12,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
 
-        public DimmerAdjustment() : base(true)
+        public DimmerAdjustment() : base(false)
         {
             DisplayName = "Dimmer Brightness";
             Description = "Adjust brightness of Shelly Dimmers";

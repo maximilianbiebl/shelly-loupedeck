@@ -12,7 +12,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
 
-        public ThermostatAdjustment() : base(true)
+        public ThermostatAdjustment() : base(false)
         {
             DisplayName = "Thermostat Temperature";
             Description = "Adjust target temperature of thermostats";

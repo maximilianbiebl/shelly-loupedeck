@@ -12,7 +12,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
 
-        public RGBWBrightnessAdjustment() : base(true)
+        public RGBWBrightnessAdjustment() : base(false)
         {
             DisplayName = "RGBW Brightness";
             Description = "Adjust brightness of RGBW bulbs";
