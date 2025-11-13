@@ -262,8 +262,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // Gen 3 devices use /device/control endpoint
-                var url = $"{_serverUrl}/device/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}";
+                // Gen 3 devices use /device/relay/control but without channel parameter
+                var url = $"{_serverUrl}/device/relay/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 var response = await _httpClient.GetAsync(url);
@@ -290,8 +290,8 @@ namespace ShellyLoupedeckPlugin.Api
             try
             {
                 var turn = turnOn ? "on" : "off";
-                // Don't include channel parameter - it causes "wrong_control" error for RGBW bulbs
-                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&turn={turn}";
+                // RGBW bulbs need channel and brightness parameters
+                var url = $"{_serverUrl}/device/light/control?auth_key={_authKey}&id={deviceId}&channel={channel}&turn={turn}&brightness=100";
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url.Replace(_authKey, "***KEY***")}");
 
                 var response = await _httpClient.GetAsync(url);
