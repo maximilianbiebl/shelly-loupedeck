@@ -20,7 +20,15 @@ namespace ShellyLoupedeckPlugin.Actions
             { "cyan", (0, 255, 255, 0) },
             { "magenta", (255, 0, 255, 0) },
             { "warm_white", (0, 0, 0, 255) },
-            { "cool_white", (0, 0, 0, 200) }
+            { "cool_white", (0, 0, 0, 255) }
+        };
+
+        // Color temperature in Kelvin for white modes
+        private Dictionary<string, int> _colorTemperatures = new Dictionary<string, int>
+        {
+            { "white", 4000 },        // Neutral white
+            { "warm_white", 2700 },   // Warm white (like incandescent bulb)
+            { "cool_white", 6500 }    // Cool white (like daylight)
         };
 
         public RGBWColorAdjustment() : base()
@@ -119,6 +127,14 @@ namespace ShellyLoupedeckPlugin.Actions
             var color = _presetColors[colorKey];
             DebugLogger.Log($"  -> Color values: R={color.R}, G={color.G}, B={color.B}, W={color.W}");
 
+            // Get color temperature if this is a white mode
+            int? temperature = null;
+            if (_colorTemperatures.ContainsKey(colorKey))
+            {
+                temperature = _colorTemperatures[colorKey];
+                DebugLogger.Log($"  -> Color temperature: {temperature}K");
+            }
+
             if (devicePart.StartsWith("group_"))
             {
                 // Format: group_{groupId}
@@ -131,7 +147,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     foreach (var deviceId in group.DeviceIds)
                     {
                         DebugLogger.Log($"    -> Setting color for device: {deviceId}");
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W);
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature);
                     }
                 }
                 else
@@ -143,7 +159,7 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 // Format: {deviceId}
                 DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
-                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W);
+                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature);
             }
         }
 

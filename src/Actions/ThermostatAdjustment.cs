@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
@@ -11,6 +12,8 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
+        private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
+        private readonly object _timerLock = new object();
 
         public ThermostatAdjustment() : base(false)
         {
@@ -32,6 +35,17 @@ namespace ShellyLoupedeckPlugin.Actions
         protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
+
+            // Dispose all timers
+            lock (_timerLock)
+            {
+                foreach (var timer in _debounceTimers.Values)
+                {
+                    timer?.Dispose();
+                }
+                _debounceTimers.Clear();
+            }
+
             return base.OnUnload();
         }
 
@@ -83,7 +97,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        protected override async void ApplyAdjustment(string actionParameter, int diff)
+        protected override void ApplyAdjustment(string actionParameter, int diff)
         {
             DebugLogger.Log($"=== ThermostatAdjustment: ApplyAdjustment called with parameter: {actionParameter}, diff: {diff} ===");
 
@@ -93,6 +107,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
+            // Update temperature value immediately for UI responsiveness
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
@@ -100,10 +115,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, updating local values");
                     foreach (var deviceId in group.DeviceIds)
                     {
-                        await AdjustDeviceTemperatureAsync(deviceId, diff);
+                        UpdateTemperatureValue(deviceId, diff);
                     }
                 }
                 else
@@ -114,16 +129,39 @@ namespace ShellyLoupedeckPlugin.Actions
             else
             {
                 DebugLogger.Log($"  -> Device adjustment for device ID: {actionParameter}");
-                await AdjustDeviceTemperatureAsync(actionParameter, diff);
+                UpdateTemperatureValue(actionParameter, diff);
             }
 
             AdjustmentValueChanged(actionParameter);
+
+            // Debounce the API call
+            lock (_timerLock)
+            {
+                if (_debounceTimers.ContainsKey(actionParameter))
+                {
+                    _debounceTimers[actionParameter]?.Dispose();
+                }
+
+                DebugLogger.Log($"  -> Starting debounce timer (300ms) for parameter: {actionParameter}");
+                _debounceTimers[actionParameter] = new Timer(async _ =>
+                {
+                    DebugLogger.Log($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
+                    await SendTemperatureUpdateAsync(actionParameter);
+
+                    lock (_timerLock)
+                    {
+                        if (_debounceTimers.ContainsKey(actionParameter))
+                        {
+                            _debounceTimers[actionParameter]?.Dispose();
+                            _debounceTimers.Remove(actionParameter);
+                        }
+                    }
+                }, null, 300, Timeout.Infinite);
+            }
         }
 
-        private async Task AdjustDeviceTemperatureAsync(string deviceId, int diff)
+        private void UpdateTemperatureValue(string deviceId, int diff)
         {
-            DebugLogger.Log($"    -> AdjustDeviceTemperatureAsync called for device: {deviceId}, diff: {diff}");
-
             if (!_currentTemperature.ContainsKey(deviceId))
             {
                 var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
@@ -144,9 +182,35 @@ namespace ShellyLoupedeckPlugin.Actions
             _currentTemperature[deviceId] = newTemperature;
 
             DebugLogger.Log($"    -> Temperature: {oldTemperature}°C -> {newTemperature}°C (diff={diff}, step=0.5)");
-            DebugLogger.Log($"    -> Calling SetThermostatTemperatureAsync...");
+        }
 
-            await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemperature);
+        private async Task SendTemperatureUpdateAsync(string actionParameter)
+        {
+            if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
+                {
+                    DebugLogger.Log($"  -> Sending temperature update for group with {group.DeviceIds.Count} devices");
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        if (_currentTemperature.ContainsKey(deviceId))
+                        {
+                            DebugLogger.Log($"    -> Setting temperature for device {deviceId} to {_currentTemperature[deviceId]}°C");
+                            await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, _currentTemperature[deviceId]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (_currentTemperature.ContainsKey(actionParameter))
+                {
+                    DebugLogger.Log($"  -> Setting temperature for device {actionParameter} to {_currentTemperature[actionParameter]}°C");
+                    await _plugin.ApiClient.SetThermostatTemperatureAsync(actionParameter, _currentTemperature[actionParameter]);
+                }
+            }
         }
 
         protected override string GetAdjustmentValue(string actionParameter)

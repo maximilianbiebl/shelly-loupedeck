@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
@@ -11,6 +12,8 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
+        private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
+        private readonly object _timerLock = new object();
 
         public DimmerAdjustment() : base(false)
         {
@@ -32,6 +35,17 @@ namespace ShellyLoupedeckPlugin.Actions
         protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
+
+            // Dispose all timers
+            lock (_timerLock)
+            {
+                foreach (var timer in _debounceTimers.Values)
+                {
+                    timer?.Dispose();
+                }
+                _debounceTimers.Clear();
+            }
+
             return base.OnUnload();
         }
 
@@ -79,11 +93,12 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        protected override async void ApplyAdjustment(string actionParameter, int diff)
+        protected override void ApplyAdjustment(string actionParameter, int diff)
         {
             if (string.IsNullOrEmpty(actionParameter))
                 return;
 
+            // Update brightness value immediately for UI responsiveness
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
@@ -92,19 +107,42 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     foreach (var deviceId in group.DeviceIds)
                     {
-                        await AdjustDeviceBrightnessAsync(deviceId, diff);
+                        UpdateBrightnessValue(deviceId, diff);
                     }
                 }
             }
             else
             {
-                await AdjustDeviceBrightnessAsync(actionParameter, diff);
+                UpdateBrightnessValue(actionParameter, diff);
             }
 
             AdjustmentValueChanged(actionParameter);
+
+            // Debounce the API call
+            lock (_timerLock)
+            {
+                if (_debounceTimers.ContainsKey(actionParameter))
+                {
+                    _debounceTimers[actionParameter]?.Dispose();
+                }
+
+                _debounceTimers[actionParameter] = new Timer(async _ =>
+                {
+                    await SendBrightnessUpdateAsync(actionParameter);
+
+                    lock (_timerLock)
+                    {
+                        if (_debounceTimers.ContainsKey(actionParameter))
+                        {
+                            _debounceTimers[actionParameter]?.Dispose();
+                            _debounceTimers.Remove(actionParameter);
+                        }
+                    }
+                }, null, 300, Timeout.Infinite);
+            }
         }
 
-        private async Task AdjustDeviceBrightnessAsync(string deviceId, int diff)
+        private void UpdateBrightnessValue(string deviceId, int diff)
         {
             if (!_currentBrightness.ContainsKey(deviceId))
             {
@@ -121,8 +159,32 @@ namespace ShellyLoupedeckPlugin.Actions
 
             var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + (diff * 5)));
             _currentBrightness[deviceId] = newBrightness;
+        }
 
-            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
+        private async Task SendBrightnessUpdateAsync(string actionParameter)
+        {
+            if (actionParameter.StartsWith("group_"))
+            {
+                var groupId = actionParameter.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
+                {
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        if (_currentBrightness.ContainsKey(deviceId))
+                        {
+                            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, _currentBrightness[deviceId]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (_currentBrightness.ContainsKey(actionParameter))
+                {
+                    await _plugin.ApiClient.SetLightBrightnessAsync(actionParameter, _currentBrightness[actionParameter]);
+                }
+            }
         }
 
         protected override string GetAdjustmentValue(string actionParameter)
