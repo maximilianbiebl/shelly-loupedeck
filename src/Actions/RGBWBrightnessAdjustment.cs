@@ -212,7 +212,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     _debounceTimers[actionParameter]?.Dispose();
                 }
 
-                DebugLogger.Log($"  -> Starting debounce timer (600ms) for parameter: {actionParameter}");
+                DebugLogger.Log($"  -> Starting debounce timer (400ms) for parameter: {actionParameter}");
                 _debounceTimers[actionParameter] = new Timer(async _ =>
                 {
                     DebugLogger.Log($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
