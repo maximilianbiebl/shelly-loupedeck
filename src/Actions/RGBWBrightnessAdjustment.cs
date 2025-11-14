@@ -88,7 +88,15 @@ namespace ShellyLoupedeckPlugin.Actions
                     device.Status?.Lights != null &&
                     device.Status.Lights.Count > 0)
                 {
-                    _currentBrightness[device.Id] = device.Status.Lights[0].Brightness;
+                    var light = device.Status.Lights[0];
+                    _currentBrightness[device.Id] = light.Brightness;
+
+                    // Initialize color state if not yet tracked (default to white mode)
+                    if (!_plugin.DeviceColorStates.ContainsKey(device.Id))
+                    {
+                        _plugin.DeviceColorStates[device.Id] = (0, 0, 0, 255, null);
+                        DebugLogger.Log($"  Initialized color state for device {device.Id} to white mode");
+                    }
                 }
             }
         }
@@ -138,7 +146,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     _debounceTimers[actionParameter]?.Dispose();
                 }
 
-                DebugLogger.Log($"  -> Starting debounce timer (300ms) for parameter: {actionParameter}");
+                DebugLogger.Log($"  -> Starting debounce timer (600ms) for parameter: {actionParameter}");
                 _debounceTimers[actionParameter] = new Timer(async _ =>
                 {
                     DebugLogger.Log($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
@@ -152,7 +160,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             _debounceTimers.Remove(actionParameter);
                         }
                     }
-                }, null, 300, Timeout.Infinite);
+                }, null, 600, Timeout.Infinite);
             }
         }
 
@@ -191,22 +199,65 @@ namespace ShellyLoupedeckPlugin.Actions
                     DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
-                        if (_currentBrightness.ContainsKey(deviceId))
-                        {
-                            DebugLogger.Log($"    -> Setting brightness for device {deviceId} to {_currentBrightness[deviceId]}");
-                            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, _currentBrightness[deviceId]);
-                        }
+                        await SendDeviceBrightnessAsync(deviceId);
                     }
                 }
             }
             else
             {
-                if (_currentBrightness.ContainsKey(actionParameter))
+                await SendDeviceBrightnessAsync(actionParameter);
+            }
+        }
+
+        private async Task SendDeviceBrightnessAsync(string deviceId)
+        {
+            if (!_currentBrightness.ContainsKey(deviceId))
+                return;
+
+            var brightness = _currentBrightness[deviceId];
+
+            // Check if device has a tracked color state
+            if (_plugin.DeviceColorStates.ContainsKey(deviceId))
+            {
+                var colorState = _plugin.DeviceColorStates[deviceId];
+                bool isColorMode = colorState.R > 0 || colorState.G > 0 || colorState.B > 0;
+
+                if (isColorMode)
                 {
-                    DebugLogger.Log($"  -> Setting brightness for device {actionParameter} to {_currentBrightness[actionParameter]}");
-                    await _plugin.ApiClient.SetLightBrightnessAsync(actionParameter, _currentBrightness[actionParameter]);
+                    // In color mode: scale RGB values proportionally based on brightness
+                    // Find max RGB value to calculate scale factor
+                    int maxRgb = Math.Max(Math.Max(colorState.R, colorState.G), colorState.B);
+                    if (maxRgb > 0)
+                    {
+                        double scale = brightness / 100.0;
+                        int r = (int)(colorState.R * scale);
+                        int g = (int)(colorState.G * scale);
+                        int b = (int)(colorState.B * scale);
+
+                        DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Sending RGB=({r},{g},{b}) for {brightness}% brightness");
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, null, null);
+                        return;
+                    }
+                }
+                else
+                {
+                    // In white mode: use brightness API with temperature if available
+                    DebugLogger.Log($"    -> Device {deviceId} in WHITE mode: Setting brightness to {brightness}%");
+                    await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
+
+                    // If there's a temperature, reapply it after brightness change
+                    if (colorState.Temperature.HasValue)
+                    {
+                        DebugLogger.Log($"    -> Reapplying color temperature: {colorState.Temperature}K");
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, 0, 0, 0, 255, null, colorState.Temperature);
+                    }
+                    return;
                 }
             }
+
+            // Fallback: use simple brightness API
+            DebugLogger.Log($"    -> No color state tracked for device {deviceId}, using simple brightness API: {brightness}%");
+            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
         }
 
         protected override string GetAdjustmentValue(string actionParameter)

@@ -26,7 +26,7 @@ namespace ShellyLoupedeckPlugin.Actions
         // Color temperature in Kelvin for white modes
         private Dictionary<string, int> _colorTemperatures = new Dictionary<string, int>
         {
-            { "white", 4000 },        // Neutral white
+            { "white", 4750 },        // Neutral white
             { "warm_white", 2700 },   // Warm white (like incandescent bulb)
             { "cool_white", 6500 }    // Cool white (like daylight)
         };
@@ -148,6 +148,10 @@ namespace ShellyLoupedeckPlugin.Actions
                     {
                         DebugLogger.Log($"    -> Setting color for device: {deviceId}");
                         await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature);
+
+                        // Store color state in plugin for brightness adjustment
+                        _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
+                        DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
                     }
                 }
                 else
@@ -160,6 +164,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 // Format: {deviceId}
                 DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
                 await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature);
+
+                // Store color state in plugin for brightness adjustment
+                _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
+                DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
             }
         }
 

@@ -138,7 +138,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             _debounceTimers.Remove(actionParameter);
                         }
                     }
-                }, null, 300, Timeout.Infinite);
+                }, null, 600, Timeout.Infinite);
             }
         }
 

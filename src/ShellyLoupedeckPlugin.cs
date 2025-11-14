@@ -15,6 +15,9 @@ namespace ShellyLoupedeckPlugin
         private List<DeviceGroup> _groups = new List<DeviceGroup>();
         private System.Threading.Timer _refreshTimer;
 
+        // Shared color state for RGBW devices (deviceId -> (R, G, B, W, Temperature))
+        public Dictionary<string, (int R, int G, int B, int W, int? Temperature)> DeviceColorStates { get; } = new Dictionary<string, (int, int, int, int, int?)>();
+
         public ShellyApiClient ApiClient => _apiClient;
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;
