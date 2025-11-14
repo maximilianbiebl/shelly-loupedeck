@@ -207,28 +207,29 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void UpdateBrightnessValue(string deviceId, int diff)
         {
-            if (!_currentBrightness.ContainsKey(deviceId))
+            // Always sync with cache first (in case color was changed)
+            if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
             {
-                // First try to use the brightness cache (set when color changes)
-                if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
+                if (!_currentBrightness.ContainsKey(deviceId) ||
+                    _currentBrightness[deviceId] != _plugin.DeviceBrightnessCache[deviceId])
                 {
                     _currentBrightness[deviceId] = _plugin.DeviceBrightnessCache[deviceId];
-                    DebugLogger.Log($"    -> Initialized brightness from cache: {_currentBrightness[deviceId]}");
+                    DebugLogger.Log($"    -> Synced brightness from cache: {_currentBrightness[deviceId]}%");
+                }
+            }
+            else if (!_currentBrightness.ContainsKey(deviceId))
+            {
+                // Initialize from device status if no cache available
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                {
+                    _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
+                    DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
                 }
                 else
                 {
-                    // Fall back to device status
-                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
-                    {
-                        _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
-                        DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
-                    }
-                    else
-                    {
-                        _currentBrightness[deviceId] = 50;
-                        DebugLogger.Log($"    -> Device status not available, defaulting to 50");
-                    }
+                    _currentBrightness[deviceId] = 50;
+                    DebugLogger.Log($"    -> Device status not available, defaulting to 50");
                 }
             }
 
@@ -304,6 +305,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 return "0%";
 
             int brightness = 0;
+            string deviceId = null;
 
             if (actionParameter.StartsWith("group_"))
             {
@@ -311,16 +313,26 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null && group.DeviceIds.Count > 0)
                 {
-                    var firstDeviceId = group.DeviceIds[0];
-                    if (_currentBrightness.ContainsKey(firstDeviceId))
-                    {
-                        brightness = _currentBrightness[firstDeviceId];
-                    }
+                    deviceId = group.DeviceIds[0];
                 }
             }
-            else if (_currentBrightness.ContainsKey(actionParameter))
+            else
             {
-                brightness = _currentBrightness[actionParameter];
+                deviceId = actionParameter;
+            }
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                // Sync with cache first (in case color was changed)
+                if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
+                {
+                    _currentBrightness[deviceId] = _plugin.DeviceBrightnessCache[deviceId];
+                }
+
+                if (_currentBrightness.ContainsKey(deviceId))
+                {
+                    brightness = _currentBrightness[deviceId];
+                }
             }
 
             return $"{brightness}%";
