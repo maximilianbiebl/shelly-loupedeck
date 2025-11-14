@@ -40,16 +40,23 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void CreateParameters()
         {
+            DebugLogger.Log($"=== ThermostatBoostAction: CreateParameters called, Plugin has {_plugin.Devices.Count} devices ===");
+
             RemoveAllParameters();
+
+            int paramCount = 0;
 
             // Add individual Thermostat devices with different boost durations
             foreach (var device in _plugin.Devices)
             {
-                if (device.GetDeviceType() == ShellyDeviceType.Thermostat)
+                var deviceType = device.GetDeviceType();
+                if (deviceType == ShellyDeviceType.Thermostat)
                 {
+                    DebugLogger.Log($"  Device {device.Id} ({device.Name}): Type=Thermostat, adding boost parameters");
                     AddParameter($"{device.Id}_30", $"{device.Name} - 30min", device.Name);
                     AddParameter($"{device.Id}_60", $"{device.Name} - 60min", device.Name);
                     AddParameter($"{device.Id}_120", $"{device.Name} - 120min", device.Name);
+                    paramCount += 3;
                 }
             }
 
@@ -58,12 +65,15 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 if (group.Type == ShellyDeviceType.Thermostat)
                 {
+                    DebugLogger.Log($"  Group {group.Id} ({group.Name}): Type=Thermostat, adding boost parameters");
                     AddParameter($"group_{group.Id}_30", $"[Group] {group.Name} - 30min", group.Name);
                     AddParameter($"group_{group.Id}_60", $"[Group] {group.Name} - 60min", group.Name);
                     AddParameter($"group_{group.Id}_120", $"[Group] {group.Name} - 120min", group.Name);
+                    paramCount += 3;
                 }
             }
 
+            DebugLogger.Log($"ThermostatBoostAction: Added {paramCount} boost parameters");
             ActionImageChanged();
         }
 

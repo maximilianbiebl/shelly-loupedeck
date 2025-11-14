@@ -27,7 +27,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private Dictionary<string, int> _colorTemperatures = new Dictionary<string, int>
         {
             { "white", 4750 },        // Neutral white
-            { "warm_white", 2700 },   // Warm white (like incandescent bulb)
+            { "warm_white", 3000 },   // Warm white
             { "cool_white", 6500 }    // Cool white (like daylight)
         };
 

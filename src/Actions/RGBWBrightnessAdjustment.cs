@@ -224,31 +224,26 @@ namespace ShellyLoupedeckPlugin.Actions
 
                 if (isColorMode)
                 {
-                    // In color mode: send RGB values with brightness parameter
-                    // The API should scale RGB values based on brightness
-                    DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Sending RGB=({colorState.R},{colorState.G},{colorState.B}) with brightness={brightness}%");
+                    // In color mode: scale RGB values proportionally based on brightness
+                    // This avoids rate limit issues by making only one API call
+                    int maxRgb = Math.Max(Math.Max(colorState.R, colorState.G), colorState.B);
+                    if (maxRgb > 0)
+                    {
+                        double scale = brightness / 100.0;
+                        int r = (int)(colorState.R * scale);
+                        int g = (int)(colorState.G * scale);
+                        int b = (int)(colorState.B * scale);
 
-                    // First set the color
-                    await _plugin.ApiClient.SetLightColorAsync(deviceId, colorState.R, colorState.G, colorState.B, 0, null, null);
-
-                    // Then set the brightness
-                    await Task.Delay(100); // Small delay between API calls
-                    await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
-                    return;
+                        DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Scaling RGB from ({colorState.R},{colorState.G},{colorState.B}) to ({r},{g},{b}) for {brightness}% brightness");
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, null, null);
+                        return;
+                    }
                 }
                 else
                 {
-                    // In white mode: use brightness API
+                    // In white mode: just set brightness (temperature should persist)
                     DebugLogger.Log($"    -> Device {deviceId} in WHITE mode: Setting brightness to {brightness}%");
                     await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
-
-                    // If there's a temperature, reapply it after brightness change
-                    if (colorState.Temperature.HasValue)
-                    {
-                        await Task.Delay(100); // Small delay between API calls
-                        DebugLogger.Log($"    -> Reapplying color temperature: {colorState.Temperature}K");
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, 0, 0, 0, 255, null, colorState.Temperature);
-                    }
                     return;
                 }
             }
