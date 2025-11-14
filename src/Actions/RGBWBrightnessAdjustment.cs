@@ -303,20 +303,11 @@ namespace ShellyLoupedeckPlugin.Actions
 
                 if (isColorMode)
                 {
-                    // In color mode: scale RGB values proportionally based on brightness
-                    // This avoids rate limit issues by making only one API call
-                    int maxRgb = Math.Max(Math.Max(colorState.R, colorState.G), colorState.B);
-                    if (maxRgb > 0)
-                    {
-                        double scale = brightness / 100.0;
-                        int r = (int)(colorState.R * scale);
-                        int g = (int)(colorState.G * scale);
-                        int b = (int)(colorState.B * scale);
-
-                        DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Scaling RGB from ({colorState.R},{colorState.G},{colorState.B}) to ({r},{g},{b}) for {brightness}% brightness");
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, null, null);
-                        return;
-                    }
+                    // In color mode: send full RGB values + brightness parameter
+                    // The Shelly API will handle the scaling internally
+                    DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Setting RGB=({colorState.R},{colorState.G},{colorState.B}) with brightness={brightness}%");
+                    await _plugin.ApiClient.SetLightColorAsync(deviceId, colorState.R, colorState.G, colorState.B, 0, null, null, brightness);
+                    return;
                 }
                 else
                 {

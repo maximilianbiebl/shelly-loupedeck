@@ -147,15 +147,35 @@ namespace ShellyLoupedeckPlugin.Actions
                     foreach (var deviceId in group.DeviceIds)
                     {
                         DebugLogger.Log($"    -> Setting color for device: {deviceId}");
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, 100);
+
+                        // Determine brightness based on mode
+                        int? brightnessToSet = null;
+                        bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
+
+                        if (isColorMode)
+                        {
+                            // In color mode: set to 100% for full color visibility
+                            brightnessToSet = 100;
+                            DebugLogger.Log($"    -> COLOR mode: Setting brightness to 100%");
+                        }
+                        else
+                        {
+                            // In white mode: keep current brightness (don't override)
+                            DebugLogger.Log($"    -> WHITE mode: Not setting brightness (device keeps current value)");
+                        }
+
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
 
                         // Store color state in plugin for brightness adjustment
                         _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
                         DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                        // Set brightness cache to 100% (matches actual device brightness)
-                        _plugin.DeviceBrightnessCache[deviceId] = 100;
-                        DebugLogger.Log($"    -> Set brightness to 100% for device {deviceId}");
+                        // Update brightness cache only if we set it
+                        if (brightnessToSet.HasValue)
+                        {
+                            _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
+                            DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
+                        }
                     }
                 }
                 else
@@ -167,15 +187,35 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 // Format: {deviceId}
                 DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
-                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, 100);
+
+                // Determine brightness based on mode
+                int? brightnessToSet = null;
+                bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
+
+                if (isColorMode)
+                {
+                    // In color mode: set to 100% for full color visibility
+                    brightnessToSet = 100;
+                    DebugLogger.Log($"  -> COLOR mode: Setting brightness to 100%");
+                }
+                else
+                {
+                    // In white mode: keep current brightness (don't override)
+                    DebugLogger.Log($"  -> WHITE mode: Not setting brightness (device keeps current value)");
+                }
+
+                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
 
                 // Store color state in plugin for brightness adjustment
                 _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
                 DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                // Set brightness cache to 100% (matches actual device brightness)
-                _plugin.DeviceBrightnessCache[devicePart] = 100;
-                DebugLogger.Log($"  -> Set brightness to 100% for device {devicePart}");
+                // Update brightness cache only if we set it
+                if (brightnessToSet.HasValue)
+                {
+                    _plugin.DeviceBrightnessCache[devicePart] = brightnessToSet.Value;
+                    DebugLogger.Log($"  -> Updated brightness cache to {brightnessToSet.Value}%");
+                }
             }
         }
 
