@@ -18,6 +18,9 @@ namespace ShellyLoupedeckPlugin
         // Shared color state for RGBW devices (deviceId -> (R, G, B, W, Temperature))
         public Dictionary<string, (int R, int G, int B, int W, int? Temperature)> DeviceColorStates { get; } = new Dictionary<string, (int, int, int, int, int?)>();
 
+        // Shared brightness state for RGBW devices (updated when color is set)
+        public Dictionary<string, int> DeviceBrightnessCache { get; } = new Dictionary<string, int>();
+
         public ShellyApiClient ApiClient => _apiClient;
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;

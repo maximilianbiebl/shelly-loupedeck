@@ -153,27 +153,9 @@ namespace ShellyLoupedeckPlugin.Actions
                         _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
                         DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                        // Refresh device status
-                        DebugLogger.Log($"    -> Waiting 500ms before status refresh...");
-                        await Task.Delay(500);
-                        DebugLogger.Log($"    -> Getting updated device status...");
-                        var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
-                        if (updatedDevice != null)
-                        {
-                            DebugLogger.Log($"    -> Got updated status, updating device in list");
-                            var index = _plugin.Devices.FindIndex(d => d.Id == deviceId);
-                            if (index >= 0)
-                            {
-                                _plugin.Devices[index] = updatedDevice;
-                                DebugLogger.Log($"    -> Device updated at index {index}");
-                                DebugLogger.Log($"    -> Triggering DevicesUpdated event to refresh brightness values");
-                                _plugin.OnDevicesUpdated();
-                            }
-                        }
-                        else
-                        {
-                            DebugLogger.Log($"    -> WARNING: GetDeviceStatusAsync returned null!");
-                        }
+                        // Set brightness cache to 100% (default after color change)
+                        _plugin.DeviceBrightnessCache[deviceId] = 100;
+                        DebugLogger.Log($"    -> Set brightness cache to 100% for device {deviceId}");
                     }
                 }
                 else
@@ -191,27 +173,9 @@ namespace ShellyLoupedeckPlugin.Actions
                 _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
                 DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                // Refresh device status
-                DebugLogger.Log($"  -> Waiting 500ms before status refresh...");
-                await Task.Delay(500);
-                DebugLogger.Log($"  -> Getting updated device status...");
-                var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(devicePart);
-                if (updatedDevice != null)
-                {
-                    DebugLogger.Log($"  -> Got updated status, updating device in list");
-                    var index = _plugin.Devices.FindIndex(d => d.Id == devicePart);
-                    if (index >= 0)
-                    {
-                        _plugin.Devices[index] = updatedDevice;
-                        DebugLogger.Log($"  -> Device updated at index {index}");
-                        DebugLogger.Log($"  -> Triggering DevicesUpdated event to refresh brightness values");
-                        _plugin.OnDevicesUpdated();
-                    }
-                }
-                else
-                {
-                    DebugLogger.Log($"  -> WARNING: GetDeviceStatusAsync returned null!");
-                }
+                // Set brightness cache to 100% (default after color change)
+                _plugin.DeviceBrightnessCache[devicePart] = 100;
+                DebugLogger.Log($"  -> Set brightness cache to 100% for device {devicePart}");
             }
         }
 

@@ -234,22 +234,35 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             if (!_currentBrightness.ContainsKey(deviceId))
             {
-                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                // First try to use the brightness cache (set when color changes)
+                if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
                 {
-                    _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
-                    DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
+                    _currentBrightness[deviceId] = _plugin.DeviceBrightnessCache[deviceId];
+                    DebugLogger.Log($"    -> Initialized brightness from cache: {_currentBrightness[deviceId]}");
                 }
                 else
                 {
-                    _currentBrightness[deviceId] = 50;
-                    DebugLogger.Log($"    -> Device status not available, defaulting to 50");
+                    // Fall back to device status
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                    if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                    {
+                        _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
+                        DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
+                    }
+                    else
+                    {
+                        _currentBrightness[deviceId] = 50;
+                        DebugLogger.Log($"    -> Device status not available, defaulting to 50");
+                    }
                 }
             }
 
             var oldBrightness = _currentBrightness[deviceId];
             var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + diff));
             _currentBrightness[deviceId] = newBrightness;
+
+            // Also update the cache
+            _plugin.DeviceBrightnessCache[deviceId] = newBrightness;
 
             DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
         }
