@@ -30,9 +30,9 @@ namespace ShellyLoupedeckPlugin.Models
                 {
                     switch (value)
                     {
-                        // RGBW groups become Brightness groups (most versatile - works for dimming and with Dimmers too)
+                        // Keep RGBW as Color groups (user can create separate Brightness groups if needed)
                         case ShellyDeviceType.RGBW:
-                            Purpose = GroupPurpose.Brightness;
+                            Purpose = GroupPurpose.Color;
                             break;
                         case ShellyDeviceType.Dimmer:
                             Purpose = GroupPurpose.Brightness;

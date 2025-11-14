@@ -153,7 +153,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
 
                         DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
-                        await ToggleDeviceAsync(deviceId, channel);
+                        await ToggleDeviceAsync(deviceId, channel, skipStatusRefresh: true);
 
                         // Add 1 second delay between devices to respect rate limit (except after last device)
                         if (i < group.DeviceIds.Count - 1)
@@ -162,6 +162,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             await Task.Delay(1000);
                         }
                     }
+                    DebugLogger.Log($"  -> Group operation complete, status will be refreshed by background task");
                 }
                 else
                 {
@@ -189,16 +190,16 @@ namespace ShellyLoupedeckPlugin.Actions
                     DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
                 }
 
-                await ToggleDeviceAsync(deviceId, channel);
+                await ToggleDeviceAsync(deviceId, channel, skipStatusRefresh: false);
             }
 
             DebugLogger.Log($"  -> Calling ActionImageChanged");
             ActionImageChanged(actionParameter);
         }
 
-        private async Task ToggleDeviceAsync(string deviceId, int channel)
+        private async Task ToggleDeviceAsync(string deviceId, int channel, bool skipStatusRefresh = false)
         {
-            DebugLogger.Log($"    -> ToggleDeviceAsync called for device: {deviceId}, channel: {channel}");
+            DebugLogger.Log($"    -> ToggleDeviceAsync called for device: {deviceId}, channel: {channel}, skipRefresh: {skipStatusRefresh}");
 
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
             if (device == null)
@@ -234,7 +235,20 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             DebugLogger.Log($"    -> API call completed, success = {success}");
 
-            // Refresh device status
+            if (!success)
+            {
+                DebugLogger.Log($"    -> WARNING: API call failed for device {deviceId}!");
+            }
+
+            // Skip status refresh for group operations (to prevent rate limit)
+            // Background refresh task will update status anyway
+            if (skipStatusRefresh)
+            {
+                DebugLogger.Log($"    -> Skipping status refresh (group operation)");
+                return;
+            }
+
+            // Refresh device status for single device operations
             DebugLogger.Log($"    -> Waiting 500ms before status refresh...");
             await Task.Delay(500);
             DebugLogger.Log($"    -> Getting updated device status...");

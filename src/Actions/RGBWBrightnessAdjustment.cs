@@ -242,11 +242,37 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                    DebugLogger.Log($"  -> Sending brightness update for group '{group.Name}' (Purpose: {group.Purpose}) with {group.DeviceIds.Count} devices");
+
+                    // For color groups, ensure all devices get the same color
+                    (int R, int G, int B, int W, int? temp) groupColorState = (0, 0, 0, 0, null);
+                    if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
+                    {
+                        // Try to get color from first device in group, or use a default
+                        if (group.DeviceIds.Count > 0 && _plugin.DeviceColorStates.ContainsKey(group.DeviceIds[0]))
+                        {
+                            groupColorState = _plugin.DeviceColorStates[group.DeviceIds[0]];
+                            DebugLogger.Log($"  -> Using color from first device: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                        }
+                        else
+                        {
+                            // Default to warm white color
+                            groupColorState = (255, 180, 100, 0, null);
+                            DebugLogger.Log($"  -> Using default warm white color: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                        }
+                    }
+
                     for (int i = 0; i < group.DeviceIds.Count; i++)
                     {
                         var deviceId = group.DeviceIds[i];
                         DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+
+                        // For color/brightness groups, sync color state across all devices
+                        if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
+                        {
+                            _plugin.DeviceColorStates[deviceId] = groupColorState;
+                        }
+
                         await SendDeviceBrightnessAsync(deviceId);
 
                         // Add 1 second delay between devices to respect rate limit (except after last device)
