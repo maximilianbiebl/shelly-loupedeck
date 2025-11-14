@@ -157,8 +157,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
             }
 
-            var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + (diff * 5)));
+            var oldBrightness = _currentBrightness[deviceId];
+            var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + diff));
             _currentBrightness[deviceId] = newBrightness;
+            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
         }
 
         private async Task SendBrightnessUpdateAsync(string actionParameter)

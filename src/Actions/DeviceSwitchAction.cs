@@ -56,11 +56,37 @@ namespace ShellyLoupedeckPlugin.Actions
 
                 if (deviceType == ShellyDeviceType.Switch ||
                     deviceType == ShellyDeviceType.ShellyPlus2PM ||
-                    deviceType == ShellyDeviceType.RGBW)
+                    deviceType == ShellyDeviceType.RGBW ||
+                    deviceType == ShellyDeviceType.Dimmer)
                 {
-                    AddParameter(device.Id, device.Name, "Devices");
-                    DebugLogger.Log($"    -> Added as parameter");
-                    deviceCount++;
+                    // Check if device has multiple relays (like Shelly Switch 2.5)
+                    int relayCount = 0;
+                    if (device.Status?.Relays != null)
+                    {
+                        relayCount = device.Status.Relays.Count;
+                    }
+                    else if (device.Relays != null)
+                    {
+                        relayCount = device.Relays.Count;
+                    }
+
+                    if (relayCount > 1)
+                    {
+                        // Add parameter for each relay
+                        for (int i = 0; i < relayCount; i++)
+                        {
+                            AddParameter($"{device.Id}_ch{i}", $"{device.Name} - Channel {i + 1}", "Devices");
+                            DebugLogger.Log($"    -> Added as parameter with channel {i}");
+                            deviceCount++;
+                        }
+                    }
+                    else
+                    {
+                        // Single relay/light device
+                        AddParameter(device.Id, device.Name, "Devices");
+                        DebugLogger.Log($"    -> Added as parameter");
+                        deviceCount++;
+                    }
                 }
                 else
                 {
@@ -75,7 +101,8 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 if (group.Type == ShellyDeviceType.Switch ||
                     group.Type == ShellyDeviceType.ShellyPlus2PM ||
-                    group.Type == ShellyDeviceType.RGBW)
+                    group.Type == ShellyDeviceType.RGBW ||
+                    group.Type == ShellyDeviceType.Dimmer)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
                     deviceCount++;
@@ -112,7 +139,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
-                        await ToggleDeviceAsync(deviceId);
+                        await ToggleDeviceAsync(deviceId, 0);
                     }
                 }
                 else
@@ -122,17 +149,35 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             else
             {
-                DebugLogger.Log($"  -> Device action for device ID: {actionParameter}");
-                await ToggleDeviceAsync(actionParameter);
+                // Check if parameter includes channel (format: deviceId_chN)
+                string deviceId = actionParameter;
+                int channel = 0;
+
+                if (actionParameter.Contains("_ch"))
+                {
+                    var parts = actionParameter.Split(new[] { "_ch" }, StringSplitOptions.None);
+                    if (parts.Length == 2)
+                    {
+                        deviceId = parts[0];
+                        int.TryParse(parts[1], out channel);
+                        DebugLogger.Log($"  -> Device action for device ID: {deviceId}, channel: {channel}");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
+                }
+
+                await ToggleDeviceAsync(deviceId, channel);
             }
 
             DebugLogger.Log($"  -> Calling ActionImageChanged");
             ActionImageChanged(actionParameter);
         }
 
-        private async Task ToggleDeviceAsync(string deviceId)
+        private async Task ToggleDeviceAsync(string deviceId, int channel)
         {
-            DebugLogger.Log($"    -> ToggleDeviceAsync called for device: {deviceId}");
+            DebugLogger.Log($"    -> ToggleDeviceAsync called for device: {deviceId}, channel: {channel}");
 
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
             if (device == null)
@@ -143,7 +188,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             DebugLogger.Log($"    -> Found device: {device.Name}");
             var deviceType = device.GetDeviceType();
-            var isOn = GetDeviceState(device);
+            var isOn = GetDeviceState(device, channel);
             DebugLogger.Log($"    -> Current state: {(isOn ? "ON" : "OFF")}, toggling to: {(isOn ? "OFF" : "ON")}");
             DebugLogger.Log($"    -> Device type: {deviceType}");
 
@@ -151,20 +196,20 @@ namespace ShellyLoupedeckPlugin.Actions
             bool success = false;
             bool isGen3 = device.Switch0 != null || device.Sys != null;
 
-            if (deviceType == ShellyDeviceType.RGBW)
+            if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
             {
-                DebugLogger.Log($"    -> RGBW device: Calling SetLightStateAsync with channel=0 and brightness...");
-                success = await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, !isOn);
+                DebugLogger.Log($"    -> RGBW/Dimmer device: Calling SetLightStateAsync with channel={channel}...");
+                success = await _plugin.ApiClient.SetLightStateAsync(deviceId, channel, !isOn);
             }
             else if (isGen3)
             {
-                DebugLogger.Log($"    -> Gen3 device: Calling SetGen3SwitchStateAsync without channel parameter...");
-                success = await _plugin.ApiClient.SetGen3SwitchStateAsync(deviceId, 0, !isOn);
+                DebugLogger.Log($"    -> Gen3 device: Calling SetGen3SwitchStateAsync with channel={channel}...");
+                success = await _plugin.ApiClient.SetGen3SwitchStateAsync(deviceId, channel, !isOn);
             }
             else
             {
-                DebugLogger.Log($"    -> Standard relay device: Calling SetRelayStateAsync with channel=0...");
-                success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !isOn);
+                DebugLogger.Log($"    -> Standard relay device: Calling SetRelayStateAsync with channel={channel}...");
+                success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, channel, !isOn);
             }
             DebugLogger.Log($"    -> API call completed, success = {success}");
 
@@ -193,10 +238,10 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        private bool GetDeviceState(ShellyDevice device)
+        private bool GetDeviceState(ShellyDevice device, int channel = 0)
         {
             // Check Gen 3 devices first
-            if (device.Switch0 != null)
+            if (device.Switch0 != null && channel == 0)
             {
                 var isOn = device.Switch0.Output;
                 DebugLogger.Log($"      -> GetDeviceState: Using Gen3 Switch0 output = {isOn}");
@@ -204,34 +249,34 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             // Check Gen 1/2 devices
-            if (device.Status?.Relays != null && device.Status.Relays.Count > 0)
+            if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
             {
-                var isOn = device.Status.Relays[0].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using Relay state = {isOn}");
+                var isOn = device.Status.Relays[channel].IsOn;
+                DebugLogger.Log($"      -> GetDeviceState: Using Relay[{channel}] state = {isOn}");
                 return isOn;
             }
-            if (device.Status?.Lights != null && device.Status.Lights.Count > 0)
+            if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
             {
-                var isOn = device.Status.Lights[0].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using Light state = {isOn}");
+                var isOn = device.Status.Lights[channel].IsOn;
+                DebugLogger.Log($"      -> GetDeviceState: Using Light[{channel}] state = {isOn}");
                 return isOn;
             }
 
             // Fallback for Gen 1/2 devices with direct fields
-            if (device.Relays != null && device.Relays.Count > 0)
+            if (device.Relays != null && device.Relays.Count > channel)
             {
-                var isOn = device.Relays[0].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using direct Relays field = {isOn}");
+                var isOn = device.Relays[channel].IsOn;
+                DebugLogger.Log($"      -> GetDeviceState: Using direct Relays[{channel}] field = {isOn}");
                 return isOn;
             }
-            if (device.Lights != null && device.Lights.Count > 0)
+            if (device.Lights != null && device.Lights.Count > channel)
             {
-                var isOn = device.Lights[0].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using direct Lights field = {isOn}");
+                var isOn = device.Lights[channel].IsOn;
+                DebugLogger.Log($"      -> GetDeviceState: Using direct Lights[{channel}] field = {isOn}");
                 return isOn;
             }
 
-            DebugLogger.Log($"      -> GetDeviceState: No status available, defaulting to false");
+            DebugLogger.Log($"      -> GetDeviceState: No status available for channel {channel}, defaulting to false");
             return false;
         }
 
@@ -249,6 +294,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             string deviceName;
             bool isOn = false;
+            int channel = 0;
 
             if (actionParameter.StartsWith("group_"))
             {
@@ -262,7 +308,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     foreach (var deviceId in group.DeviceIds)
                     {
                         var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                        if (device != null && GetDeviceState(device))
+                        if (device != null && GetDeviceState(device, 0))
                         {
                             isOn = true;
                             break;
@@ -272,11 +318,28 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             else
             {
-                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
-                deviceName = device?.Name ?? "Unknown";
+                // Check if parameter includes channel (format: deviceId_chN)
+                string deviceId = actionParameter;
+
+                if (actionParameter.Contains("_ch"))
+                {
+                    var parts = actionParameter.Split(new[] { "_ch" }, StringSplitOptions.None);
+                    if (parts.Length == 2)
+                    {
+                        deviceId = parts[0];
+                        int.TryParse(parts[1], out channel);
+                    }
+                }
+
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                 if (device != null)
                 {
-                    isOn = GetDeviceState(device);
+                    deviceName = channel > 0 ? $"{device.Name} - Ch{channel + 1}" : device.Name;
+                    isOn = GetDeviceState(device, channel);
+                }
+                else
+                {
+                    deviceName = "Unknown";
                 }
             }
 

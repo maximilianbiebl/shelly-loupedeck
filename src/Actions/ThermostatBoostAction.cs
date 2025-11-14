@@ -69,33 +69,54 @@ namespace ShellyLoupedeckPlugin.Actions
 
         protected override async void RunCommand(string actionParameter)
         {
+            DebugLogger.Log($"=== ThermostatBoostAction: RunCommand called with parameter: {actionParameter} ===");
+
             if (string.IsNullOrEmpty(actionParameter))
+            {
+                DebugLogger.Log("  -> Parameter is null or empty, returning");
                 return;
+            }
 
             var parts = actionParameter.Split('_');
+            DebugLogger.Log($"  -> Split into {parts.Length} parts: {string.Join(", ", parts)}");
+
             if (parts.Length < 2)
+            {
+                DebugLogger.Log("  -> Not enough parts, returning");
                 return;
+            }
 
             var minutes = int.Parse(parts[parts.Length - 1]); // Last part is the duration
+            DebugLogger.Log($"  -> Parsed boost duration: {minutes} minutes");
 
             if (actionParameter.StartsWith("group_"))
             {
                 // Format: group_{groupId}_{minutes}
                 var groupId = string.Join("_", parts.Skip(1).Take(parts.Length - 2).ToArray());
+                DebugLogger.Log($"  -> Group action for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
-                        await _plugin.ApiClient.SetThermostatBoostAsync(deviceId, minutes);
+                        DebugLogger.Log($"    -> Setting boost for device: {deviceId}");
+                        var success = await _plugin.ApiClient.SetThermostatBoostAsync(deviceId, minutes);
+                        DebugLogger.Log($"    -> Boost result: {success}");
                     }
+                }
+                else
+                {
+                    DebugLogger.Log($"  -> Group not found!");
                 }
             }
             else
             {
                 // Format: {deviceId}_{minutes}
                 var deviceId = string.Join("_", parts.Take(parts.Length - 1).ToArray());
-                await _plugin.ApiClient.SetThermostatBoostAsync(deviceId, minutes);
+                DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
+                var success = await _plugin.ApiClient.SetThermostatBoostAsync(deviceId, minutes);
+                DebugLogger.Log($"  -> Boost result: {success}");
             }
         }
 
