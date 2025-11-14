@@ -151,10 +151,40 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, updating local values");
-                    foreach (var deviceId in group.DeviceIds)
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
+
+                    // For groups: sync all devices to same brightness value
+                    // Use first device as reference and apply diff to it
+                    if (group.DeviceIds.Count > 0)
                     {
-                        UpdateBrightnessValue(deviceId, diff);
+                        var firstDeviceId = group.DeviceIds[0];
+
+                        // Get current brightness of first device
+                        if (!_currentBrightness.ContainsKey(firstDeviceId))
+                        {
+                            // Initialize from cache or default
+                            if (_plugin.DeviceBrightnessCache.ContainsKey(firstDeviceId))
+                            {
+                                _currentBrightness[firstDeviceId] = _plugin.DeviceBrightnessCache[firstDeviceId];
+                            }
+                            else
+                            {
+                                _currentBrightness[firstDeviceId] = 50;
+                            }
+                        }
+
+                        // Apply diff to first device
+                        var oldBrightness = _currentBrightness[firstDeviceId];
+                        var newBrightness = Math.Max(0, Math.Min(100, oldBrightness + diff));
+
+                        DebugLogger.Log($"  -> Group brightness: {oldBrightness}% -> {newBrightness}% (diff={diff})");
+
+                        // Set ALL devices to this new value
+                        foreach (var deviceId in group.DeviceIds)
+                        {
+                            _currentBrightness[deviceId] = newBrightness;
+                            _plugin.DeviceBrightnessCache[deviceId] = newBrightness;
+                        }
                     }
                 }
                 else
@@ -275,11 +305,11 @@ namespace ShellyLoupedeckPlugin.Actions
 
                         await SendDeviceBrightnessAsync(deviceId);
 
-                        // Add 1 second delay between devices to respect rate limit (except after last device)
+                        // Add 1.5 second delay between devices to respect rate limit (except after last device)
                         if (i < group.DeviceIds.Count - 1)
                         {
-                            DebugLogger.Log($"  -> Waiting 1000ms before next device (rate limit prevention)");
-                            await Task.Delay(1000);
+                            DebugLogger.Log($"  -> Waiting 1500ms before next device (rate limit prevention)");
+                            await Task.Delay(1500);
                         }
                     }
                 }
