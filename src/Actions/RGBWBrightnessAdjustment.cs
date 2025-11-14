@@ -297,6 +297,9 @@ namespace ShellyLoupedeckPlugin.Actions
                         var deviceId = group.DeviceIds[i];
                         DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
 
+                        // Record user action before each device to prevent refresh task collision
+                        _plugin.RecordUserAction();
+
                         // For color/brightness groups, sync color state across all devices
                         if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
                         {
@@ -305,11 +308,11 @@ namespace ShellyLoupedeckPlugin.Actions
 
                         await SendDeviceBrightnessAsync(deviceId);
 
-                        // Add 1.5 second delay between devices to respect rate limit (except after last device)
+                        // Add 2 second delay between devices to respect rate limit (except after last device)
                         if (i < group.DeviceIds.Count - 1)
                         {
-                            DebugLogger.Log($"  -> Waiting 1500ms before next device (rate limit prevention)");
-                            await Task.Delay(1500);
+                            DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                            await Task.Delay(2000);
                         }
                     }
                 }

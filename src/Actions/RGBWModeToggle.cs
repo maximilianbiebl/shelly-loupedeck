@@ -96,13 +96,17 @@ namespace ShellyLoupedeckPlugin.Actions
                     for (int i = 0; i < group.DeviceIds.Count; i++)
                     {
                         var deviceId = group.DeviceIds[i];
+
+                        // Record user action before each device to prevent refresh task collision
+                        _plugin.RecordUserAction();
+
                         await SetDeviceModeAsync(deviceId, setToWhite);
 
-                        // Add 1.5 second delay between devices to respect rate limit (except after last device)
+                        // Add 2 second delay between devices to respect rate limit (except after last device)
                         if (i < group.DeviceIds.Count - 1)
                         {
-                            DebugLogger.Log($"  -> Waiting 1500ms before next device (rate limit prevention)");
-                            await Task.Delay(1500);
+                            DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                            await Task.Delay(2000);
                         }
                     }
                 }
