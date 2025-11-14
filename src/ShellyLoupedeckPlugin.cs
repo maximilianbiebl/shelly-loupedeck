@@ -14,6 +14,7 @@ namespace ShellyLoupedeckPlugin
         private List<ShellyDevice> _devices = new List<ShellyDevice>();
         private List<DeviceGroup> _groups = new List<DeviceGroup>();
         private System.Threading.Timer _refreshTimer;
+        private DateTime _lastUserActionTime = DateTime.MinValue;
 
         // Shared color state for RGBW devices (deviceId -> (R, G, B, W, Temperature))
         public Dictionary<string, (int R, int G, int B, int W, int? Temperature)> DeviceColorStates { get; } = new Dictionary<string, (int, int, int, int, int?)>();
@@ -24,6 +25,12 @@ namespace ShellyLoupedeckPlugin
         public ShellyApiClient ApiClient => _apiClient;
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;
+
+        // Update last user action time to prevent refresh conflicts
+        public void RecordUserAction()
+        {
+            _lastUserActionTime = DateTime.Now;
+        }
 
         public override bool UsesApplicationApiOnly => true;
         public override bool HasNoApplication => false;
@@ -108,6 +115,14 @@ namespace ShellyLoupedeckPlugin
             if (!_apiClient.IsConfigured)
             {
                 DebugLogger.Log("Shelly Plugin: API client not configured, skipping device refresh");
+                return;
+            }
+
+            // Skip refresh if user was active within last 2 seconds (prevents rate limit conflicts)
+            var timeSinceLastAction = DateTime.Now - _lastUserActionTime;
+            if (timeSinceLastAction.TotalSeconds < 2)
+            {
+                DebugLogger.Log($"Shelly Plugin: Skipping refresh (user active {timeSinceLastAction.TotalMilliseconds:F0}ms ago, prevents rate limit)");
                 return;
             }
 

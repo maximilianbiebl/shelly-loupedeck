@@ -100,6 +100,9 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
+            // Record user action to prevent refresh conflicts
+            _plugin.RecordUserAction();
+
             // Find which color key the parameter ends with
             // Sort keys by length descending to match longest keys first (e.g., "cool_white" before "white")
             string colorKey = null;

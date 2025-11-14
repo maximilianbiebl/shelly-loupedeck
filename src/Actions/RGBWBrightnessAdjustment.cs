@@ -149,6 +149,9 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
+            // Record user action to prevent refresh conflicts
+            _plugin.RecordUserAction();
+
             // Update brightness value immediately for UI responsiveness
             if (actionParameter.StartsWith("group_"))
             {
