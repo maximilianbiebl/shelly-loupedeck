@@ -151,38 +151,30 @@ namespace ShellyLoupedeckPlugin.Actions
                     {
                         DebugLogger.Log($"    -> Setting color for device: {deviceId}");
 
-                        // Determine brightness based on mode
+                        // Always preserve current brightness (both color and white mode)
                         int? brightnessToSet = null;
                         bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
+                        string modeStr = isColorMode ? "COLOR" : "WHITE";
 
-                        if (isColorMode)
+                        // Read current brightness and set it explicitly
+                        // (prevents API from using default value on mode switch)
+                        if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
                         {
-                            // In color mode: set to 100% for full color visibility
-                            brightnessToSet = 100;
-                            DebugLogger.Log($"    -> COLOR mode: Setting brightness to 100%");
+                            brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
+                            DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
                         }
                         else
                         {
-                            // In white mode: read current brightness and set it explicitly
-                            // (prevents API from using default value on mode switch)
-                            if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
+                            // Fallback: read from device status
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                            if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                             {
-                                brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
-                                DebugLogger.Log($"    -> WHITE mode: Setting brightness to {brightnessToSet}% (from cache)");
+                                brightnessToSet = device.Status.Lights[0].Brightness;
+                                DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
                             }
                             else
                             {
-                                // Fallback: read from device status
-                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
-                                {
-                                    brightnessToSet = device.Status.Lights[0].Brightness;
-                                    DebugLogger.Log($"    -> WHITE mode: Setting brightness to {brightnessToSet}% (from device)");
-                                }
-                                else
-                                {
-                                    DebugLogger.Log($"    -> WHITE mode: No brightness info, not setting (device keeps current value)");
-                                }
+                                DebugLogger.Log($"    -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
                             }
                         }
 
@@ -218,38 +210,30 @@ namespace ShellyLoupedeckPlugin.Actions
                 // Format: {deviceId}
                 DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
 
-                // Determine brightness based on mode
+                // Always preserve current brightness (both color and white mode)
                 int? brightnessToSet = null;
                 bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
+                string modeStr = isColorMode ? "COLOR" : "WHITE";
 
-                if (isColorMode)
+                // Read current brightness and set it explicitly
+                // (prevents API from using default value on mode switch)
+                if (_plugin.DeviceBrightnessCache.ContainsKey(devicePart))
                 {
-                    // In color mode: set to 100% for full color visibility
-                    brightnessToSet = 100;
-                    DebugLogger.Log($"  -> COLOR mode: Setting brightness to 100%");
+                    brightnessToSet = _plugin.DeviceBrightnessCache[devicePart];
+                    DebugLogger.Log($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
                 }
                 else
                 {
-                    // In white mode: read current brightness and set it explicitly
-                    // (prevents API from using default value on mode switch)
-                    if (_plugin.DeviceBrightnessCache.ContainsKey(devicePart))
+                    // Fallback: read from device status
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == devicePart);
+                    if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                     {
-                        brightnessToSet = _plugin.DeviceBrightnessCache[devicePart];
-                        DebugLogger.Log($"  -> WHITE mode: Setting brightness to {brightnessToSet}% (from cache)");
+                        brightnessToSet = device.Status.Lights[0].Brightness;
+                        DebugLogger.Log($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
                     }
                     else
                     {
-                        // Fallback: read from device status
-                        var device = _plugin.Devices.FirstOrDefault(d => d.Id == devicePart);
-                        if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
-                        {
-                            brightnessToSet = device.Status.Lights[0].Brightness;
-                            DebugLogger.Log($"  -> WHITE mode: Setting brightness to {brightnessToSet}% (from device)");
-                        }
-                        else
-                        {
-                            DebugLogger.Log($"  -> WHITE mode: No brightness info, not setting (device keeps current value)");
-                        }
+                        DebugLogger.Log($"  -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
                     }
                 }
 
