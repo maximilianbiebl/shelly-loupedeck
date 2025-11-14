@@ -164,17 +164,25 @@ namespace ShellyLoupedeckPlugin.Actions
                             DebugLogger.Log($"    -> WHITE mode: Not setting brightness (device keeps current value)");
                         }
 
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
+                        var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
 
-                        // Store color state in plugin for brightness adjustment
-                        _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
-                        DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
-
-                        // Update brightness cache only if we set it
-                        if (brightnessToSet.HasValue)
+                        // Only update state if API call succeeded
+                        if (success)
                         {
-                            _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
-                            DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
+                            // Store color state in plugin for brightness adjustment
+                            _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
+                            DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
+
+                            // Update brightness cache only if we set it
+                            if (brightnessToSet.HasValue)
+                            {
+                                _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
+                                DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
+                            }
+                        }
+                        else
+                        {
+                            DebugLogger.Log($"    -> API call failed, NOT updating color state cache");
                         }
                     }
                 }
@@ -204,17 +212,25 @@ namespace ShellyLoupedeckPlugin.Actions
                     DebugLogger.Log($"  -> WHITE mode: Not setting brightness (device keeps current value)");
                 }
 
-                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
+                var success = await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
 
-                // Store color state in plugin for brightness adjustment
-                _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
-                DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
-
-                // Update brightness cache only if we set it
-                if (brightnessToSet.HasValue)
+                // Only update state if API call succeeded
+                if (success)
                 {
-                    _plugin.DeviceBrightnessCache[devicePart] = brightnessToSet.Value;
-                    DebugLogger.Log($"  -> Updated brightness cache to {brightnessToSet.Value}%");
+                    // Store color state in plugin for brightness adjustment
+                    _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
+                    DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
+
+                    // Update brightness cache only if we set it
+                    if (brightnessToSet.HasValue)
+                    {
+                        _plugin.DeviceBrightnessCache[devicePart] = brightnessToSet.Value;
+                        DebugLogger.Log($"  -> Updated brightness cache to {brightnessToSet.Value}%");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"  -> API call failed, NOT updating color state cache");
                 }
             }
         }
