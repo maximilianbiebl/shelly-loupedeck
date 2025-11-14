@@ -176,7 +176,7 @@ namespace ShellyLoupedeckPlugin
 
         public event EventHandler DevicesUpdated;
 
-        protected virtual void OnDevicesUpdated()
+        public virtual void OnDevicesUpdated()
         {
             if (DevicesUpdated != null)
             {
