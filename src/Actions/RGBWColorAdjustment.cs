@@ -146,10 +146,11 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
-                    foreach (var deviceId in group.DeviceIds)
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                    for (int i = 0; i < group.DeviceIds.Count; i++)
                     {
-                        DebugLogger.Log($"    -> Setting color for device: {deviceId}");
+                        var deviceId = group.DeviceIds[i];
+                        DebugLogger.Log($"    -> Group device {i+1}/{group.DeviceIds.Count}: Setting color for {deviceId}");
 
                         // Always preserve current brightness (both color and white mode)
                         int? brightnessToSet = null;
@@ -197,6 +198,13 @@ namespace ShellyLoupedeckPlugin.Actions
                         else
                         {
                             DebugLogger.Log($"    -> API call failed, NOT updating color state cache");
+                        }
+
+                        // Add 1 second delay between devices to respect rate limit (except after last device)
+                        if (i < group.DeviceIds.Count - 1)
+                        {
+                            DebugLogger.Log($"    -> Waiting 1000ms before next device (rate limit prevention)");
+                            await Task.Delay(1000);
                         }
                     }
                 }

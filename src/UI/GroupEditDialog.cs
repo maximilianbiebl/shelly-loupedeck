@@ -187,12 +187,43 @@ namespace ShellyLoupedeckPlugin.UI
 
                 if (shouldInclude)
                 {
-                    var item = new DeviceListItem
+                    // Check if device has multiple relays (like Shelly 2.5)
+                    int relayCount = 0;
+                    if (deviceType == ShellyDeviceType.Switch || deviceType == ShellyDeviceType.ShellyPlus2PM)
                     {
-                        DeviceId = device.Id,
-                        DisplayText = $"{device.Name} ({device.Id})"
-                    };
-                    devicesListBox.Items.Add(item);
+                        if (device.Status?.Relays != null)
+                        {
+                            relayCount = device.Status.Relays.Count;
+                        }
+                        else if (device.Relays != null)
+                        {
+                            relayCount = device.Relays.Count;
+                        }
+                    }
+
+                    if (relayCount > 1)
+                    {
+                        // Add separate entry for each channel
+                        for (int ch = 0; ch < relayCount; ch++)
+                        {
+                            var item = new DeviceListItem
+                            {
+                                DeviceId = $"{device.Id}_ch{ch}",
+                                DisplayText = $"{device.Name} - Channel {ch + 1}"
+                            };
+                            devicesListBox.Items.Add(item);
+                        }
+                    }
+                    else
+                    {
+                        // Single channel device
+                        var item = new DeviceListItem
+                        {
+                            DeviceId = device.Id,
+                            DisplayText = $"{device.Name} ({device.Id})"
+                        };
+                        devicesListBox.Items.Add(item);
+                    }
                 }
             }
         }

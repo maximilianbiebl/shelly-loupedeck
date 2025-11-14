@@ -242,10 +242,19 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices");
-                    foreach (var deviceId in group.DeviceIds)
+                    DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                    for (int i = 0; i < group.DeviceIds.Count; i++)
                     {
+                        var deviceId = group.DeviceIds[i];
+                        DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
                         await SendDeviceBrightnessAsync(deviceId);
+
+                        // Add 1 second delay between devices to respect rate limit (except after last device)
+                        if (i < group.DeviceIds.Count - 1)
+                        {
+                            DebugLogger.Log($"  -> Waiting 1000ms before next device (rate limit prevention)");
+                            await Task.Delay(1000);
+                        }
                     }
                 }
             }

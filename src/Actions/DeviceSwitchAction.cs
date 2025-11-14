@@ -133,10 +133,34 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
-                    foreach (var deviceId in group.DeviceIds)
+                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                    for (int i = 0; i < group.DeviceIds.Count; i++)
                     {
-                        await ToggleDeviceAsync(deviceId, 0);
+                        var deviceParam = group.DeviceIds[i];
+
+                        // Parse device ID and channel (format: deviceId or deviceId_chN)
+                        string deviceId = deviceParam;
+                        int channel = 0;
+
+                        if (deviceParam.Contains("_ch"))
+                        {
+                            var parts = deviceParam.Split(new[] { "_ch" }, StringSplitOptions.None);
+                            if (parts.Length == 2)
+                            {
+                                deviceId = parts[0];
+                                int.TryParse(parts[1], out channel);
+                            }
+                        }
+
+                        DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
+                        await ToggleDeviceAsync(deviceId, channel);
+
+                        // Add 1 second delay between devices to respect rate limit (except after last device)
+                        if (i < group.DeviceIds.Count - 1)
+                        {
+                            DebugLogger.Log($"  -> Waiting 1000ms before next device (rate limit prevention)");
+                            await Task.Delay(1000);
+                        }
                     }
                 }
                 else
