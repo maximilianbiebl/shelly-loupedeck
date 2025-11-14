@@ -71,7 +71,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Add Thermostat groups
             foreach (var group in _plugin.Groups)
             {
-                if (group.Type == ShellyDeviceType.Thermostat)
+                if (group.Purpose == GroupPurpose.Thermostat)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
                 }

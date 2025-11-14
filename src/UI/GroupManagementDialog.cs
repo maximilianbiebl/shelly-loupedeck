@@ -93,7 +93,7 @@ namespace ShellyLoupedeckPlugin.UI
                 var item = new GroupListItem
                 {
                     Group = group,
-                    DisplayText = $"{group.Name} ({group.Type}) - {group.DeviceIds.Count} device(s)"
+                    DisplayText = $"{group.Name} ({group.Purpose}) - {group.DeviceIds.Count} device(s)"
                 };
                 groupListBox.Items.Add(item);
             }

@@ -78,7 +78,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Add color presets for each group
             foreach (var group in _plugin.Groups)
             {
-                if (group.Type == ShellyDeviceType.RGBW)
+                if (group.Purpose == GroupPurpose.Color)
                 {
                     foreach (var color in _presetColors)
                     {

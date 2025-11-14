@@ -99,10 +99,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Add groups
             foreach (var group in _plugin.Groups)
             {
-                if (group.Type == ShellyDeviceType.Switch ||
-                    group.Type == ShellyDeviceType.ShellyPlus2PM ||
-                    group.Type == ShellyDeviceType.RGBW ||
-                    group.Type == ShellyDeviceType.Dimmer)
+                if (group.Purpose == GroupPurpose.Switch)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
                     deviceCount++;

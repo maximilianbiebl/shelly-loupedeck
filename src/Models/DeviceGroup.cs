@@ -15,17 +15,17 @@ namespace ShellyLoupedeckPlugin.Models
         [JsonProperty("deviceIds")]
         public List<string> DeviceIds { get; set; } = new List<string>();
 
-        [JsonProperty("type")]
-        public ShellyDeviceType Type { get; set; }
+        [JsonProperty("purpose")]
+        public GroupPurpose Purpose { get; set; }
 
         public DeviceGroup()
         {
         }
 
-        public DeviceGroup(string name, ShellyDeviceType type)
+        public DeviceGroup(string name, GroupPurpose purpose)
         {
             Name = name;
-            Type = type;
+            Purpose = purpose;
         }
     }
 }

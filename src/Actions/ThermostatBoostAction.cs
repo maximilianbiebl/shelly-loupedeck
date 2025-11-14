@@ -63,9 +63,9 @@ namespace ShellyLoupedeckPlugin.Actions
             // Add Thermostat groups
             foreach (var group in _plugin.Groups)
             {
-                if (group.Type == ShellyDeviceType.Thermostat)
+                if (group.Purpose == GroupPurpose.Thermostat)
                 {
-                    DebugLogger.Log($"  Group {group.Id} ({group.Name}): Type=Thermostat, adding boost parameters");
+                    DebugLogger.Log($"  Group {group.Id} ({group.Name}): Purpose=Thermostat, adding boost parameters");
                     AddParameter($"group_{group.Id}_30", $"[Group] {group.Name} - 30min", group.Name);
                     AddParameter($"group_{group.Id}_60", $"[Group] {group.Name} - 60min", group.Name);
                     AddParameter($"group_{group.Id}_120", $"[Group] {group.Name} - 120min", group.Name);

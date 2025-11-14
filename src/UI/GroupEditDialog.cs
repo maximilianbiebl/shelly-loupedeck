@@ -34,7 +34,7 @@ namespace ShellyLoupedeckPlugin.UI
             {
                 // Editing existing group
                 nameTextBox.Text = _group.Name;
-                typeComboBox.SelectedItem = _group.Type;
+                typeComboBox.SelectedItem = _group.Purpose;
 
                 // Check devices that are in the group
                 for (int i = 0; i < devicesListBox.Items.Count; i++)
@@ -82,7 +82,7 @@ namespace ShellyLoupedeckPlugin.UI
 
             // Type Label
             typeLabel = new Label();
-            typeLabel.Text = "Device Type:";
+            typeLabel.Text = "Group Purpose:";
             typeLabel.Location = new System.Drawing.Point(20, 120);
             typeLabel.Size = new System.Drawing.Size(100, 20);
             this.Controls.Add(typeLabel);
@@ -129,14 +129,14 @@ namespace ShellyLoupedeckPlugin.UI
         private void LoadDeviceTypes()
         {
             typeComboBox.Items.Clear();
-            typeComboBox.Items.Add(ShellyDeviceType.RGBW);
-            typeComboBox.Items.Add(ShellyDeviceType.Switch);
-            typeComboBox.Items.Add(ShellyDeviceType.Dimmer);
-            typeComboBox.Items.Add(ShellyDeviceType.Thermostat);
+            typeComboBox.Items.Add(GroupPurpose.Switch);
+            typeComboBox.Items.Add(GroupPurpose.Brightness);
+            typeComboBox.Items.Add(GroupPurpose.Color);
+            typeComboBox.Items.Add(GroupPurpose.Thermostat);
 
-            if (_group.Type != ShellyDeviceType.Unknown)
+            if (_group.Purpose != default(GroupPurpose))
             {
-                typeComboBox.SelectedItem = _group.Type;
+                typeComboBox.SelectedItem = _group.Purpose;
             }
             else if (typeComboBox.Items.Count > 0)
             {
@@ -151,11 +151,41 @@ namespace ShellyLoupedeckPlugin.UI
             if (typeComboBox.SelectedItem == null)
                 return;
 
-            var selectedType = (ShellyDeviceType)typeComboBox.SelectedItem;
+            var selectedPurpose = (GroupPurpose)typeComboBox.SelectedItem;
 
             foreach (var device in _plugin.Devices)
             {
-                if (device.GetDeviceType() == selectedType)
+                var deviceType = device.GetDeviceType();
+                bool shouldInclude = false;
+
+                switch (selectedPurpose)
+                {
+                    case GroupPurpose.Switch:
+                        // On/Off control - supports Switch, ShellyPlus2PM, RGBW, Dimmer
+                        shouldInclude = deviceType == ShellyDeviceType.Switch ||
+                                       deviceType == ShellyDeviceType.ShellyPlus2PM ||
+                                       deviceType == ShellyDeviceType.RGBW ||
+                                       deviceType == ShellyDeviceType.Dimmer;
+                        break;
+
+                    case GroupPurpose.Brightness:
+                        // Brightness control - supports RGBW, Dimmer
+                        shouldInclude = deviceType == ShellyDeviceType.RGBW ||
+                                       deviceType == ShellyDeviceType.Dimmer;
+                        break;
+
+                    case GroupPurpose.Color:
+                        // Color control - supports RGBW only
+                        shouldInclude = deviceType == ShellyDeviceType.RGBW;
+                        break;
+
+                    case GroupPurpose.Thermostat:
+                        // Temperature control - supports Thermostat only
+                        shouldInclude = deviceType == ShellyDeviceType.Thermostat;
+                        break;
+                }
+
+                if (shouldInclude)
                 {
                     var item = new DeviceListItem
                     {
@@ -183,7 +213,7 @@ namespace ShellyLoupedeckPlugin.UI
 
             if (typeComboBox.SelectedItem == null)
             {
-                MessageBox.Show("Please select a device type.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please select a group purpose.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -195,7 +225,7 @@ namespace ShellyLoupedeckPlugin.UI
 
             // Update group
             _group.Name = nameTextBox.Text.Trim();
-            _group.Type = (ShellyDeviceType)typeComboBox.SelectedItem;
+            _group.Purpose = (GroupPurpose)typeComboBox.SelectedItem;
             _group.DeviceIds.Clear();
 
             foreach (var item in devicesListBox.CheckedItems)

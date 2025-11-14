@@ -68,10 +68,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
             }
 
-            // Add RGBW groups
+            // Add RGBW/Dimmer groups
             foreach (var group in _plugin.Groups)
             {
-                if (group.Type == ShellyDeviceType.RGBW)
+                if (group.Purpose == GroupPurpose.Brightness)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
                 }
