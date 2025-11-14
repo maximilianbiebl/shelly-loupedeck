@@ -163,8 +163,27 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                         else
                         {
-                            // In white mode: keep current brightness (don't override)
-                            DebugLogger.Log($"    -> WHITE mode: Not setting brightness (device keeps current value)");
+                            // In white mode: read current brightness and set it explicitly
+                            // (prevents API from using default value on mode switch)
+                            if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
+                            {
+                                brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
+                                DebugLogger.Log($"    -> WHITE mode: Setting brightness to {brightnessToSet}% (from cache)");
+                            }
+                            else
+                            {
+                                // Fallback: read from device status
+                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                                {
+                                    brightnessToSet = device.Status.Lights[0].Brightness;
+                                    DebugLogger.Log($"    -> WHITE mode: Setting brightness to {brightnessToSet}% (from device)");
+                                }
+                                else
+                                {
+                                    DebugLogger.Log($"    -> WHITE mode: No brightness info, not setting (device keeps current value)");
+                                }
+                            }
                         }
 
                         var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
@@ -211,8 +230,27 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
                 else
                 {
-                    // In white mode: keep current brightness (don't override)
-                    DebugLogger.Log($"  -> WHITE mode: Not setting brightness (device keeps current value)");
+                    // In white mode: read current brightness and set it explicitly
+                    // (prevents API from using default value on mode switch)
+                    if (_plugin.DeviceBrightnessCache.ContainsKey(devicePart))
+                    {
+                        brightnessToSet = _plugin.DeviceBrightnessCache[devicePart];
+                        DebugLogger.Log($"  -> WHITE mode: Setting brightness to {brightnessToSet}% (from cache)");
+                    }
+                    else
+                    {
+                        // Fallback: read from device status
+                        var device = _plugin.Devices.FirstOrDefault(d => d.Id == devicePart);
+                        if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                        {
+                            brightnessToSet = device.Status.Lights[0].Brightness;
+                            DebugLogger.Log($"  -> WHITE mode: Setting brightness to {brightnessToSet}% (from device)");
+                        }
+                        else
+                        {
+                            DebugLogger.Log($"  -> WHITE mode: No brightness info, not setting (device keeps current value)");
+                        }
+                    }
                 }
 
                 var success = await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
