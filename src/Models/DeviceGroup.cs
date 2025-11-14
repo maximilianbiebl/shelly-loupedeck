@@ -22,22 +22,34 @@ namespace ShellyLoupedeckPlugin.Models
         [JsonProperty("type")]
         private ShellyDeviceType _legacyType
         {
-            get => ShellyDeviceType.Unknown; // Never used for serialization
+            get { return ShellyDeviceType.Unknown; } // Never used for serialization
             set
             {
                 // Convert old device type to new purpose
                 if (Purpose == default(GroupPurpose))
                 {
-                    Purpose = value switch
+                    switch (value)
                     {
                         // RGBW groups become Brightness groups (most versatile - works for dimming and with Dimmers too)
-                        ShellyDeviceType.RGBW => GroupPurpose.Brightness,
-                        ShellyDeviceType.Dimmer => GroupPurpose.Brightness,
-                        ShellyDeviceType.Switch => GroupPurpose.Switch,
-                        ShellyDeviceType.ShellyPlus2PM => GroupPurpose.Switch,
-                        ShellyDeviceType.Thermostat => GroupPurpose.Thermostat,
-                        _ => GroupPurpose.Switch
-                    };
+                        case ShellyDeviceType.RGBW:
+                            Purpose = GroupPurpose.Brightness;
+                            break;
+                        case ShellyDeviceType.Dimmer:
+                            Purpose = GroupPurpose.Brightness;
+                            break;
+                        case ShellyDeviceType.Switch:
+                            Purpose = GroupPurpose.Switch;
+                            break;
+                        case ShellyDeviceType.ShellyPlus2PM:
+                            Purpose = GroupPurpose.Switch;
+                            break;
+                        case ShellyDeviceType.Thermostat:
+                            Purpose = GroupPurpose.Thermostat;
+                            break;
+                        default:
+                            Purpose = GroupPurpose.Switch;
+                            break;
+                    }
                 }
             }
         }
