@@ -379,7 +379,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
         }
 
-        public async Task<bool> SetLightColorAsync(string deviceId, int red, int green, int blue, int white, int? channel = null, int? temperature = null)
+        public async Task<bool> SetLightColorAsync(string deviceId, int red, int green, int blue, int white, int? channel = null, int? temperature = null, int? brightness = null)
         {
             if (!IsConfigured)
                 throw new InvalidOperationException("API client not configured");
@@ -434,10 +434,18 @@ namespace ShellyLoupedeckPlugin.Api
                     DebugLogger.Log($"  SetLightColorAsync: Adding temperature parameter: {temperature.Value}K");
                 }
 
+                // Add brightness parameter if specified
+                if (brightness.HasValue)
+                {
+                    formParams.Add(new KeyValuePair<string, string>("brightness", brightness.Value.ToString()));
+                    DebugLogger.Log($"  SetLightColorAsync: Adding brightness parameter: {brightness.Value}%");
+                }
+
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var modeStr = mode != null ? $"&mode={mode}" : "";
                 var tempStr = temperature.HasValue && mode == "white" ? $"&temp={temperature.Value}" : "";
-                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}");
+                var brightnessStr = brightness.HasValue ? $"&brightness={brightness.Value}" : "";
+                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}{brightnessStr}");
 
                 var formContent = new FormUrlEncodedContent(formParams);
                 var response = await _httpClient.PostAsync(url, formContent);

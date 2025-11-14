@@ -147,15 +147,15 @@ namespace ShellyLoupedeckPlugin.Actions
                     foreach (var deviceId in group.DeviceIds)
                     {
                         DebugLogger.Log($"    -> Setting color for device: {deviceId}");
-                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature);
+                        await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, 100);
 
                         // Store color state in plugin for brightness adjustment
                         _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
                         DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                        // Set brightness cache to 100% (default after color change)
+                        // Set brightness cache to 100% (matches actual device brightness)
                         _plugin.DeviceBrightnessCache[deviceId] = 100;
-                        DebugLogger.Log($"    -> Set brightness cache to 100% for device {deviceId}");
+                        DebugLogger.Log($"    -> Set brightness to 100% for device {deviceId}");
                     }
                 }
                 else
@@ -167,15 +167,15 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 // Format: {deviceId}
                 DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
-                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature);
+                await _plugin.ApiClient.SetLightColorAsync(devicePart, color.R, color.G, color.B, color.W, null, temperature, 100);
 
                 // Store color state in plugin for brightness adjustment
                 _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
                 DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                // Set brightness cache to 100% (default after color change)
+                // Set brightness cache to 100% (matches actual device brightness)
                 _plugin.DeviceBrightnessCache[devicePart] = 100;
-                DebugLogger.Log($"  -> Set brightness cache to 100% for device {devicePart}");
+                DebugLogger.Log($"  -> Set brightness to 100% for device {devicePart}");
             }
         }
 
