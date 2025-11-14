@@ -434,17 +434,27 @@ namespace ShellyLoupedeckPlugin.Api
                     DebugLogger.Log($"  SetLightColorAsync: Adding temperature parameter: {temperature.Value}K");
                 }
 
-                // Add brightness parameter if specified
+                // Add brightness/gain parameter based on mode
                 if (brightness.HasValue)
                 {
-                    formParams.Add(new KeyValuePair<string, string>("brightness", brightness.Value.ToString()));
-                    DebugLogger.Log($"  SetLightColorAsync: Adding brightness parameter: {brightness.Value}%");
+                    if (mode == "color")
+                    {
+                        // Color mode uses 'gain' parameter for brightness control
+                        formParams.Add(new KeyValuePair<string, string>("gain", brightness.Value.ToString()));
+                        DebugLogger.Log($"  SetLightColorAsync: Adding gain parameter: {brightness.Value}%");
+                    }
+                    else
+                    {
+                        // White mode uses 'brightness' parameter
+                        formParams.Add(new KeyValuePair<string, string>("brightness", brightness.Value.ToString()));
+                        DebugLogger.Log($"  SetLightColorAsync: Adding brightness parameter: {brightness.Value}%");
+                    }
                 }
 
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var modeStr = mode != null ? $"&mode={mode}" : "";
                 var tempStr = temperature.HasValue && mode == "white" ? $"&temp={temperature.Value}" : "";
-                var brightnessStr = brightness.HasValue ? $"&brightness={brightness.Value}" : "";
+                var brightnessStr = brightness.HasValue ? (mode == "color" ? $"&gain={brightness.Value}" : $"&brightness={brightness.Value}") : "";
                 DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}{brightnessStr}");
 
                 var formContent = new FormUrlEncodedContent(formParams);

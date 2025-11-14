@@ -99,37 +99,28 @@ namespace ShellyLoupedeckPlugin.Actions
 
                     if (light != null)
                     {
-                        _currentBrightness[device.Id] = light.Brightness;
-
                         // Read actual color state from device
                         // Check if device is in color mode (any RGB > 0) or white mode
                         bool isColorMode = light.Red > 0 || light.Green > 0 || light.Blue > 0;
+
+                        // In color mode, use 'gain' for brightness; in white mode, use 'brightness'
+                        int currentBrightnessValue = isColorMode ? light.Gain : light.Brightness;
+                        _currentBrightness[device.Id] = currentBrightnessValue;
 
                         if (!_plugin.DeviceColorStates.ContainsKey(device.Id))
                         {
                             // Initialize ONLY if not already set (first time only)
                             if (isColorMode)
                             {
-                                // Store maximum RGB values (at 100% brightness) for color mode
-                                // This way we can scale them based on brightness
-                                double currentBrightnessFactor = light.Brightness / 100.0;
-                                int maxR = currentBrightnessFactor > 0 ? (int)(light.Red / currentBrightnessFactor) : light.Red;
-                                int maxG = currentBrightnessFactor > 0 ? (int)(light.Green / currentBrightnessFactor) : light.Green;
-                                int maxB = currentBrightnessFactor > 0 ? (int)(light.Blue / currentBrightnessFactor) : light.Blue;
-
-                                // Clamp values to 255
-                                maxR = Math.Min(255, maxR);
-                                maxG = Math.Min(255, maxG);
-                                maxB = Math.Min(255, maxB);
-
-                                _plugin.DeviceColorStates[device.Id] = (maxR, maxG, maxB, 0, null);
-                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: COLOR mode RGB=({maxR},{maxG},{maxB}) @ {light.Brightness}%");
+                                // Store RGB values at current gain level
+                                _plugin.DeviceColorStates[device.Id] = (light.Red, light.Green, light.Blue, 0, null);
+                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: COLOR mode RGB=({light.Red},{light.Green},{light.Blue}) @ gain={light.Gain}%");
                             }
                             else
                             {
                                 // White mode
                                 _plugin.DeviceColorStates[device.Id] = (0, 0, 0, 255, null);
-                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: WHITE mode");
+                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: WHITE mode @ brightness={light.Brightness}%");
                             }
                         }
                         // Do NOT auto-detect mode changes - only trust manually set color states
