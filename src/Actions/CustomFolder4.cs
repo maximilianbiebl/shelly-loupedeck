@@ -224,6 +224,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     actions.Add(CreateCommandName($"colormenu_r_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_g_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_b_{deviceId}"));
+                    actions.Add(CreateCommandName($"devicesetting_brightness_{deviceId}"));
                     return actions;
                 }
 
@@ -402,7 +403,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Open action buttons (from folder config)
             if (cmdParts[0] == "openaction" && cmdParts.Length >= 3)
             {
-                var actionType = cmdParts[1];
+                var actionType = cmdParts[1]; // brightness, dim, color, temperature
                 var deviceId = cmdParts[2];
 
                 // Try to get custom label from folder config
@@ -415,7 +416,12 @@ namespace ShellyLoupedeckPlugin.Actions
                             button.ActionParameter == deviceId &&
                             !string.IsNullOrEmpty(button.CustomLabel))
                         {
-                            return button.CustomLabel;
+                            // Check if this button matches the action type
+                            var buttonActionType = GetActionTypeFromActionName(button.ActionName);
+                            if (buttonActionType == actionType)
+                            {
+                                return button.CustomLabel;
+                            }
                         }
                     }
                 }
@@ -1723,6 +1729,20 @@ namespace ShellyLoupedeckPlugin.Actions
             return false;
         }
 
+        private string GetActionTypeFromActionName(string actionName)
+        {
+            // Map action names to action types
+            if (actionName == "BrightnessAdjustment" || actionName == "RGBWBrightnessAdjustment")
+                return "brightness";
+            if (actionName == "DimmerAdjustment")
+                return "dim";
+            if (actionName == "ColorAdjustment" || actionName == "RGBWColorAdjustment")
+                return "color";
+            if (actionName == "TemperatureAdjustment" || actionName == "ThermostatAdjustment")
+                return "temperature";
+            return null;
+        }
+
         private int GetDeviceBrightness(ShellyDevice device, int channel = 0)
         {
             if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
@@ -1784,12 +1804,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
-            await System.Threading.Tasks.Task.Delay(1000);
+            // Wait longer for device to update (increased from 500ms to 2000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(2000);
             await RefreshDeviceStatus(deviceId);
-
-            // Immediate UI refresh
-            ButtonActionNamesChanged();
+            // UI refresh is triggered by RefreshDeviceStatus → OnDevicesUpdated
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceDimmerAsync(string deviceId, int adjustment)
@@ -1820,12 +1838,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
-            await System.Threading.Tasks.Task.Delay(1000);
+            // Wait longer for device to update (increased from 500ms to 2000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(2000);
             await RefreshDeviceStatus(deviceId);
-
-            // Immediate UI refresh
-            ButtonActionNamesChanged();
+            // UI refresh is triggered by RefreshDeviceStatus → OnDevicesUpdated
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceColorChannelAsync(string deviceId, string channel, int adjustment)
@@ -1868,12 +1884,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
-            await System.Threading.Tasks.Task.Delay(1000);
+            // Wait longer for device to update (increased from 500ms to 2000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(2000);
             await RefreshDeviceStatus(deviceId);
-
-            // Immediate UI refresh
-            ButtonActionNamesChanged();
+            // UI refresh is triggered by RefreshDeviceStatus → OnDevicesUpdated
         }
 
         private async System.Threading.Tasks.Task RefreshDeviceStatus(string deviceId)
@@ -1931,17 +1945,15 @@ namespace ShellyLoupedeckPlugin.Actions
             // Apply the new color to all devices in the group
             await SetGroupColorAsync(group, (r, g, b, 0));
 
-            // Wait longer for devices to update (increased from 500ms to 1000ms for better reliability)
-            await System.Threading.Tasks.Task.Delay(1000);
+            // Wait longer for devices to update (increased from 500ms to 2000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(2000);
 
             // Refresh all devices in the group
             foreach (var deviceId in group.DeviceIds)
             {
                 await RefreshDeviceStatus(deviceId);
             }
-
-            // Immediate UI refresh
-            ButtonActionNamesChanged();
+            // UI refresh is triggered by RefreshDeviceStatus → OnDevicesUpdated
         }
     }
 }
