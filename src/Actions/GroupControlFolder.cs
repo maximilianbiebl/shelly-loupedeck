@@ -37,7 +37,7 @@ namespace ShellyLoupedeckPlugin.Actions
             GroupName = "Group Actions";
         }
 
-        protected override bool OnLoad()
+        protected override bool Load()
         {
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
@@ -45,15 +45,15 @@ namespace ShellyLoupedeckPlugin.Actions
 
             CreateParameters();
 
-            return base.OnLoad();
+            return true;
         }
 
-        protected override bool OnUnload()
+        protected override bool Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
 
-            return base.OnUnload();
+            return true;
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
@@ -77,7 +77,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        public override IEnumerable<string> GetButtonPressActionNames(DeviceType deviceType, string actionParameter)
+        public override IEnumerable<string> GetButtonPressActionNames(string actionParameter)
         {
             var actions = new List<string>();
 
@@ -213,7 +213,7 @@ namespace ShellyLoupedeckPlugin.Actions
             return commandId;
         }
 
-        public override BitmapImage GetCommandImage(string actionParameter, string actionName, PluginImageSize imageSize)
+        public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
             using (var builder = new BitmapBuilder(imageSize))
             {
@@ -225,8 +225,9 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                // Parse command parameter
-                var parts = actionName.Split(new[] { this.GetType().FullName }, StringSplitOptions.None);
+                // Parse command parameter - format is: {folderParam}{separator}{commandId}
+                // Split by the type name to extract commandId
+                var parts = actionParameter.Split(new[] { this.GetType().FullName }, StringSplitOptions.None);
                 if (parts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
