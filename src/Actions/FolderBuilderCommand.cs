@@ -4,7 +4,7 @@ using System.Linq;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin.Commands
+namespace ShellyLoupedeckPlugin.Actions
 {
     public class FolderBuilderCommand : PluginDynamicCommand
     {
