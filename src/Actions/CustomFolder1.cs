@@ -72,11 +72,17 @@ namespace ShellyLoupedeckPlugin.Actions
 
         public override IEnumerable<string> GetButtonPressActionNames()
         {
+            DebugLogger.Log($"CustomFolder1: GetButtonPressActionNames called");
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
             var folder = GetAssignedFolder();
             if (folder == null)
+            {
+                DebugLogger.Log($"CustomFolder1: No folder assigned to slot {SLOT_INDEX}");
                 return actions;
+            }
+
+            DebugLogger.Log($"CustomFolder1: Folder '{folder.Name}' has {folder.Buttons.Count} buttons");
 
             foreach (var button in folder.Buttons)
             {
@@ -110,9 +116,18 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
 
                 if (commandName != null)
-                    actions.Add(CreateCommandName(commandName));
+                {
+                    var fullActionName = CreateCommandName(commandName);
+                    DebugLogger.Log($"CustomFolder1: Adding action: {commandName} -> {fullActionName}");
+                    actions.Add(fullActionName);
+                }
+                else
+                {
+                    DebugLogger.Log($"CustomFolder1: WARNING - Button type {button.Type} generated null commandName");
+                }
             }
 
+            DebugLogger.Log($"CustomFolder1: Returning {actions.Count} total actions (including NavigateUp)");
             return actions;
         }
 
@@ -122,7 +137,11 @@ namespace ShellyLoupedeckPlugin.Actions
                 return "Back";
 
             var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2) return "?";
+            if (parts.Length < 2)
+            {
+                DebugLogger.Log($"CustomFolder1: GetCommandDisplayName - actionParameter split failed. Param: '{actionParameter}', TypeName: '{GetType().FullName}'");
+                return "?";
+            }
 
             var commandId = parts[1];
             var cmdParts = commandId.Split('_');
