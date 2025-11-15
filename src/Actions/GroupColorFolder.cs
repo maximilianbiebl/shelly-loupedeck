@@ -37,22 +37,23 @@ namespace ShellyLoupedeckPlugin.Actions
             GroupName = "Group Folders";
         }
 
-        protected override bool OnLoad()
+        public override void Load()
         {
-            _plugin = (ShellyLoupedeckPlugin)Plugin;
+            base.Load();
+
+            _plugin = (ShellyLoupedeckPlugin)base.Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
             _plugin.GroupsUpdated += OnGroupsUpdated;
 
             CreateParameters();
-
-            return base.OnLoad();
         }
 
-        protected override bool OnUnload()
+        public override void Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
-            return base.OnUnload();
+
+            base.Unload();
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
@@ -91,7 +92,7 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"GroupColorFolder: Created {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness)} folder parameters");
         }
 
-        protected override async void RunCommand(string actionParameter)
+        public override async void RunCommand(string actionParameter)
         {
             DebugLogger.Log($"GroupColorFolder: RunCommand called with parameter: {actionParameter}");
 
@@ -203,7 +204,7 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"  -> Color change complete for group '{group.Name}'");
         }
 
-        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
+        public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
             // If this is a folder (group), show a folder icon
             if (actionParameter.StartsWith("group_") && !actionParameter.Contains("_red") &&
