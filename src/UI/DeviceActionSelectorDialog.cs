@@ -88,10 +88,19 @@ namespace ShellyLoupedeckPlugin.UI
             _labelTextBox = new TextBox
             {
                 Location = new Point(130, 98),
-                Size = new Size(280, 25),
-                PlaceholderText = "(optional - leave empty for no label)"
+                Size = new Size(280, 25)
             };
             Controls.Add(_labelTextBox);
+
+            var labelHintLabel = new Label
+            {
+                Text = "(optional - leave empty for no label)",
+                Location = new Point(130, 128),
+                Size = new Size(280, 20),
+                ForeColor = Color.Gray,
+                Font = new Font("Arial", 8)
+            };
+            Controls.Add(labelHintLabel);
 
             // OK/Cancel buttons
             _okButton = new Button
