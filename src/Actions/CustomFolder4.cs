@@ -1359,7 +1359,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         break;
                 }
 
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                var group = _plugin.Groups.FirstOrDefault(grp => grp.Id == groupId);
                 if (group != null)
                 {
                     _ = SetGroupColorAsync(group, (r, g, b, 0));
@@ -1872,7 +1872,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private async System.Threading.Tasks.Task AdjustGroupColorChannelAsync(string groupId, string channel, int adjustment)
         {
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+            var group = _plugin.Groups.FirstOrDefault(grp => grp.Id == groupId);
             if (group == null)
             {
                 DebugLogger.Log($"[CustomFolder4] AdjustGroupColorChannelAsync: Group {groupId} not found");
