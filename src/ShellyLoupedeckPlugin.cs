@@ -13,6 +13,7 @@ namespace ShellyLoupedeckPlugin
         private ShellyApiClient _apiClient;
         private List<ShellyDevice> _devices = new List<ShellyDevice>();
         private List<DeviceGroup> _groups = new List<DeviceGroup>();
+        private List<FolderConfiguration> _folders = new List<FolderConfiguration>();
         private System.Threading.Timer _refreshTimer;
         private DateTime _lastUserActionTime = DateTime.MinValue;
 
@@ -25,6 +26,7 @@ namespace ShellyLoupedeckPlugin
         public ShellyApiClient ApiClient => _apiClient;
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;
+        public List<FolderConfiguration> Folders => _folders;
 
         // Update last user action time to prevent refresh conflicts
         public void RecordUserAction()
@@ -76,6 +78,20 @@ namespace ShellyLoupedeckPlugin
 
             DebugLogger.Log($"Loaded {_groups.Count} groups from settings");
             OnGroupsUpdated(); // Notify folder actions that groups are loaded
+
+            // Load folder configurations
+            var foldersJson = GetPluginSetting("Folders", "[]");
+            try
+            {
+                _folders = JsonConvert.DeserializeObject<List<FolderConfiguration>>(foldersJson) ?? new List<FolderConfiguration>();
+            }
+            catch
+            {
+                _folders = new List<FolderConfiguration>();
+            }
+
+            DebugLogger.Log($"Loaded {_folders.Count} folder configurations from settings");
+            OnFoldersUpdated();
 
             // Start periodic refresh (every 5 seconds)
             _refreshTimer = new System.Threading.Timer(
@@ -198,6 +214,37 @@ namespace ShellyLoupedeckPlugin
             }
         }
 
+        public void SaveFolders()
+        {
+            var foldersJson = JsonConvert.SerializeObject(_folders);
+            SetPluginSetting("Folders", foldersJson);
+        }
+
+        public void AddFolder(FolderConfiguration folder)
+        {
+            _folders.Add(folder);
+            SaveFolders();
+            OnFoldersUpdated();
+        }
+
+        public void RemoveFolder(string folderId)
+        {
+            _folders.RemoveAll(f => f.Id == folderId);
+            SaveFolders();
+            OnFoldersUpdated();
+        }
+
+        public void UpdateFolder(FolderConfiguration folder)
+        {
+            var index = _folders.FindIndex(f => f.Id == folder.Id);
+            if (index >= 0)
+            {
+                _folders[index] = folder;
+                SaveFolders();
+                OnFoldersUpdated();
+            }
+        }
+
         public event EventHandler DevicesUpdated;
 
         public virtual void OnDevicesUpdated()
@@ -215,6 +262,16 @@ namespace ShellyLoupedeckPlugin
             if (GroupsUpdated != null)
             {
                 GroupsUpdated.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public event EventHandler FoldersUpdated;
+
+        public virtual void OnFoldersUpdated()
+        {
+            if (FoldersUpdated != null)
+            {
+                FoldersUpdated.Invoke(this, EventArgs.Empty);
             }
         }
 
