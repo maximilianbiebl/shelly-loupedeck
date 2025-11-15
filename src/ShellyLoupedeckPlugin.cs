@@ -74,6 +74,9 @@ namespace ShellyLoupedeckPlugin
                 _groups = new List<DeviceGroup>();
             }
 
+            DebugLogger.Log($"Loaded {_groups.Count} groups from settings");
+            OnGroupsUpdated(); // Notify folder actions that groups are loaded
+
             // Start periodic refresh (every 5 seconds)
             _refreshTimer = new System.Threading.Timer(
                 async _ => await RefreshDevicesAsync(),
@@ -171,6 +174,7 @@ namespace ShellyLoupedeckPlugin
         {
             _groups.Add(group);
             SaveGroups();
+            OnGroupsUpdated();
             OnDevicesUpdated();
         }
 
@@ -178,6 +182,7 @@ namespace ShellyLoupedeckPlugin
         {
             _groups.RemoveAll(g => g.Id == groupId);
             SaveGroups();
+            OnGroupsUpdated();
             OnDevicesUpdated();
         }
 
@@ -188,6 +193,7 @@ namespace ShellyLoupedeckPlugin
             {
                 _groups[index] = group;
                 SaveGroups();
+                OnGroupsUpdated();
                 OnDevicesUpdated();
             }
         }
@@ -199,6 +205,16 @@ namespace ShellyLoupedeckPlugin
             if (DevicesUpdated != null)
             {
                 DevicesUpdated.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public event EventHandler GroupsUpdated;
+
+        public virtual void OnGroupsUpdated()
+        {
+            if (GroupsUpdated != null)
+            {
+                GroupsUpdated.Invoke(this, EventArgs.Empty);
             }
         }
 
