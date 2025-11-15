@@ -8,7 +8,7 @@ namespace ShellyLoupedeckPlugin.Actions
 {
     public class CustomFolder7 : PluginDynamicFolder
     {
-        private const int SLOT_INDEX = 0;
+        private const int SLOT_INDEX = 6;
         private ShellyLoupedeckPlugin _plugin;
         private System.Threading.Timer _refreshTimer;
 
