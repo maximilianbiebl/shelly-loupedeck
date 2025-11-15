@@ -115,7 +115,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder != null)
                 DisplayName = folder.Name;
             else
-                DisplayName = "Custom Folder 1 (Empty)";
+                DisplayName = "Custom Folder 3 (Empty)";
         }
 
         private FolderConfiguration GetAssignedFolder()
