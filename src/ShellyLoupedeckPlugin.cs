@@ -14,6 +14,7 @@ namespace ShellyLoupedeckPlugin
         private List<ShellyDevice> _devices = new List<ShellyDevice>();
         private List<DeviceGroup> _groups = new List<DeviceGroup>();
         private List<FolderConfiguration> _folders = new List<FolderConfiguration>();
+        private List<FlexibleFolderConfiguration> _flexibleFolders = new List<FlexibleFolderConfiguration>();
         private System.Threading.Timer _refreshTimer;
         private DateTime _lastUserActionTime = DateTime.MinValue;
 
@@ -27,6 +28,7 @@ namespace ShellyLoupedeckPlugin
         public List<ShellyDevice> Devices => _devices;
         public List<DeviceGroup> Groups => _groups;
         public List<FolderConfiguration> Folders => _folders;
+        public List<FlexibleFolderConfiguration> FlexibleFolders => _flexibleFolders;
 
         // Update last user action time to prevent refresh conflicts
         public void RecordUserAction()
@@ -92,6 +94,24 @@ namespace ShellyLoupedeckPlugin
 
             DebugLogger.Log($"Loaded {_folders.Count} folder configurations from settings");
             OnFoldersUpdated();
+
+            // Load flexible folder configurations
+            var flexibleFoldersJson = GetPluginSetting("FlexibleFolders", "[]");
+            try
+            {
+                _flexibleFolders = JsonConvert.DeserializeObject<List<FlexibleFolderConfiguration>>(flexibleFoldersJson, new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.Auto,
+                    PreserveReferencesHandling = PreserveReferencesHandling.Objects
+                }) ?? new List<FlexibleFolderConfiguration>();
+            }
+            catch
+            {
+                _flexibleFolders = new List<FlexibleFolderConfiguration>();
+            }
+
+            DebugLogger.Log($"Loaded {_flexibleFolders.Count} flexible folder configurations from settings");
+            OnFlexibleFoldersUpdated();
 
             // Start periodic refresh (every 5 seconds)
             _refreshTimer = new System.Threading.Timer(
@@ -272,6 +292,52 @@ namespace ShellyLoupedeckPlugin
             if (FoldersUpdated != null)
             {
                 FoldersUpdated.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public event EventHandler FlexibleFoldersUpdated;
+
+        public virtual void OnFlexibleFoldersUpdated()
+        {
+            if (FlexibleFoldersUpdated != null)
+            {
+                FlexibleFoldersUpdated.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        // FlexibleFolder management methods
+        public void SaveFlexibleFolders()
+        {
+            var foldersJson = JsonConvert.SerializeObject(_flexibleFolders, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.Auto,
+                PreserveReferencesHandling = PreserveReferencesHandling.Objects
+            });
+            SetPluginSetting("FlexibleFolders", foldersJson);
+        }
+
+        public void AddFlexibleFolder(FlexibleFolderConfiguration folder)
+        {
+            _flexibleFolders.Add(folder);
+            SaveFlexibleFolders();
+            OnFlexibleFoldersUpdated();
+        }
+
+        public void RemoveFlexibleFolder(string folderId)
+        {
+            _flexibleFolders.RemoveAll(f => f.Id == folderId);
+            SaveFlexibleFolders();
+            OnFlexibleFoldersUpdated();
+        }
+
+        public void UpdateFlexibleFolder(FlexibleFolderConfiguration folder)
+        {
+            var index = _flexibleFolders.FindIndex(f => f.Id == folder.Id);
+            if (index >= 0)
+            {
+                _flexibleFolders[index] = folder;
+                SaveFlexibleFolders();
+                OnFlexibleFoldersUpdated();
             }
         }
 
