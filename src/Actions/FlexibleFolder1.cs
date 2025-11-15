@@ -325,7 +325,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (device == null) return;
 
             bool currentState = GetDeviceState(device);
-            await _plugin.ApiClient.SetRelayStateAsync(deviceId, !currentState, 0);
+            await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !currentState);
 
             await System.Threading.Tasks.Task.Delay(500);
             var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
@@ -359,7 +359,7 @@ namespace ShellyLoupedeckPlugin.Actions
             bool targetState = !anyOn;
             foreach (var deviceId in group.DeviceIds)
             {
-                await _plugin.ApiClient.SetRelayStateAsync(deviceId, targetState, 0);
+                await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, targetState);
                 await System.Threading.Tasks.Task.Delay(300);
             }
 
