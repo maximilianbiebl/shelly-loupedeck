@@ -145,35 +145,12 @@ namespace ShellyLoupedeckPlugin.Actions
                     {
                         var button = currentLevel.Buttons[index];
 
-                        // For action buttons, show device name
-                        if (button.Type == FlexibleButtonType.Action && !string.IsNullOrEmpty(button.DeviceId))
-                        {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == button.DeviceId);
-                            if (device != null)
-                            {
-                                // Show label + device name
-                                if (!string.IsNullOrEmpty(button.Label))
-                                    return $"{button.Label}\n{device.Name}";
-                                else
-                                    return device.Name;
-                            }
-                        }
+                        // Only show label if it's set, never auto-add device/group names
+                        if (!string.IsNullOrEmpty(button.Label))
+                            return button.Label;
 
-                        // For group actions
-                        if (button.Type == FlexibleButtonType.Action && !string.IsNullOrEmpty(button.GroupId))
-                        {
-                            var group = _plugin.Groups.FirstOrDefault(g => g.Id == button.GroupId);
-                            if (group != null)
-                            {
-                                if (!string.IsNullOrEmpty(button.Label))
-                                    return $"{button.Label}\n{group.Name}";
-                                else
-                                    return group.Name;
-                            }
-                        }
-
-                        // Just show label
-                        return button.Label ?? "Button";
+                        // No label set - return empty or minimal placeholder
+                        return "";
                     }
                 }
             }
@@ -187,13 +164,15 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 builder.Clear(BitmapColor.Black);
 
-                if (actionParameter == PluginDynamicFolder.NavigateUpActionName || actionParameter.StartsWith("back_"))
+                var cmdParts = actionParameter.Split('_');
+
+                // Back button
+                if (actionParameter == PluginDynamicFolder.NavigateUpActionName || cmdParts[0] == "back")
                 {
                     builder.DrawText("←", BitmapColor.White, 40);
                     return builder.ToImage();
                 }
 
-                var cmdParts = actionParameter.Split('_');
                 if (cmdParts[0] == "button" && cmdParts.Length >= 2)
                 {
                     if (int.TryParse(cmdParts[1], out int index))

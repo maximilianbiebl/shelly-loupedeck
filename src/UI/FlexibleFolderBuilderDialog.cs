@@ -9,7 +9,10 @@ namespace ShellyLoupedeckPlugin.UI
     public class FlexibleFolderBuilderDialog : Form
     {
         private ShellyLoupedeckPlugin _plugin;
-        private TextBox _infoTextBox;
+        private ListBox _foldersListBox;
+        private Button _newFolderButton;
+        private Button _editFolderButton;
+        private Button _deleteFolderButton;
         private Button _createExampleButton;
         private Button _closeButton;
 
@@ -17,65 +20,80 @@ namespace ShellyLoupedeckPlugin.UI
         {
             _plugin = plugin;
             InitializeUI();
+            LoadFolders();
         }
 
         private void InitializeUI()
         {
-            Text = "Flexible Folder Builder (Beta)";
-            Size = new Size(600, 400);
+            Text = "Flexible Folder Manager";
+            Size = new Size(600, 500);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
 
+            var titleLabel = new Label
+            {
+                Text = "Flexible Folders",
+                Location = new Point(20, 20),
+                Size = new Size(560, 25),
+                Font = new Font("Arial", 14, FontStyle.Bold)
+            };
+            Controls.Add(titleLabel);
+
             var infoLabel = new Label
             {
-                Text = "Flexible Folder System - Quick Start",
-                Location = new Point(20, 20),
-                Size = new Size(560, 30),
-                Font = new Font("Arial", 14, FontStyle.Bold)
+                Text = "Create custom multi-level folder structures with unlimited navigation depth.\nOnly labels YOU set will be displayed - no auto device names.",
+                Location = new Point(20, 50),
+                Size = new Size(560, 40)
             };
             Controls.Add(infoLabel);
 
-            _infoTextBox = new TextBox
+            // Folders list
+            _foldersListBox = new ListBox
             {
-                Location = new Point(20, 60),
-                Size = new Size(560, 240),
-                Multiline = true,
-                ReadOnly = true,
-                ScrollBars = ScrollBars.Vertical,
-                Text = @"Das Flexible Folder System ermöglicht dir:
-
-✓ Beliebig viele Ebenen/Menüs erstellen
-✓ Jede Ebene mit eigenen Buttons bestücken
-✓ Gerätenamen werden IMMER angezeigt
-✓ Navigation-Buttons für Sub-Ebenen
-✓ Direkt ausführbare Aktionen (Toggle, etc.)
-
-AKTUELLER STATUS:
-- FlexibleFolder1 wurde erstellt und ist bereit
-- Modelle und Backend-Logik sind implementiert
-- UI zum Bearbeiten folgt im nächsten Update
-
-WIE DU ES NUTZT:
-1. Klicke auf 'Create Example' um einen Testordner zu erstellen
-2. Füge 'Flexible Folder 1' zu deinem Loupedeck hinzu
-3. Der Beispielordner zeigt Navigations-Buttons (lila) und Device-Toggles (grün/grau)
-4. Gerätenamen werden korrekt angezeigt!
-
-NÄCHSTE SCHRITTE:
-- Vollständiges Edit-UI wird im nächsten Update hinzugefügt
-- Dann kannst du Ordner komplett selbst konfigurieren
-- Support für alle Action-Typen (Brightness, Color, etc.)"
+                Location = new Point(20, 100),
+                Size = new Size(560, 280)
             };
-            Controls.Add(_infoTextBox);
+            _foldersListBox.SelectedIndexChanged += (s, e) => UpdateButtonStates();
+            _foldersListBox.DoubleClick += (s, e) => EditFolderButton_Click(s, e);
+            Controls.Add(_foldersListBox);
+
+            // Folder management buttons
+            _newFolderButton = new Button
+            {
+                Text = "New Folder",
+                Location = new Point(20, 395),
+                Size = new Size(110, 35)
+            };
+            _newFolderButton.Click += NewFolderButton_Click;
+            Controls.Add(_newFolderButton);
+
+            _editFolderButton = new Button
+            {
+                Text = "Edit",
+                Location = new Point(140, 395),
+                Size = new Size(80, 35),
+                Enabled = false
+            };
+            _editFolderButton.Click += EditFolderButton_Click;
+            Controls.Add(_editFolderButton);
+
+            _deleteFolderButton = new Button
+            {
+                Text = "Delete",
+                Location = new Point(230, 395),
+                Size = new Size(80, 35),
+                Enabled = false
+            };
+            _deleteFolderButton.Click += DeleteFolderButton_Click;
+            Controls.Add(_deleteFolderButton);
 
             _createExampleButton = new Button
             {
-                Text = "Create Example Folder",
-                Location = new Point(20, 320),
-                Size = new Size(200, 35),
-                Font = new Font("Arial", 10, FontStyle.Bold)
+                Text = "Create Example",
+                Location = new Point(340, 395),
+                Size = new Size(130, 35)
             };
             _createExampleButton.Click += CreateExampleButton_Click;
             Controls.Add(_createExampleButton);
@@ -83,11 +101,70 @@ NÄCHSTE SCHRITTE:
             _closeButton = new Button
             {
                 Text = "Close",
-                Location = new Point(480, 320),
+                Location = new Point(480, 395),
                 Size = new Size(100, 35)
             };
             _closeButton.Click += (s, e) => Close();
             Controls.Add(_closeButton);
+        }
+
+        private void LoadFolders()
+        {
+            _foldersListBox.Items.Clear();
+            foreach (var folder in _plugin.FlexibleFolders)
+            {
+                _foldersListBox.Items.Add(folder.Name);
+            }
+            UpdateButtonStates();
+        }
+
+        private void UpdateButtonStates()
+        {
+            bool hasSelection = _foldersListBox.SelectedIndex >= 0;
+            _editFolderButton.Enabled = hasSelection;
+            _deleteFolderButton.Enabled = hasSelection;
+        }
+
+        private void NewFolderButton_Click(object sender, EventArgs e)
+        {
+            var newFolder = new FlexibleFolderConfiguration();
+            var editor = new FlexibleFolderEditorDialog(_plugin, newFolder);
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                LoadFolders();
+            }
+        }
+
+        private void EditFolderButton_Click(object sender, EventArgs e)
+        {
+            int index = _foldersListBox.SelectedIndex;
+            if (index < 0) return;
+
+            var folder = _plugin.FlexibleFolders[index];
+            var editor = new FlexibleFolderEditorDialog(_plugin, folder);
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                LoadFolders();
+            }
+        }
+
+        private void DeleteFolderButton_Click(object sender, EventArgs e)
+        {
+            int index = _foldersListBox.SelectedIndex;
+            if (index < 0) return;
+
+            var folder = _plugin.FlexibleFolders[index];
+            var result = MessageBox.Show(
+                $"Delete folder '{folder.Name}'?",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+            {
+                _plugin.RemoveFlexibleFolder(folder.Id);
+                LoadFolders();
+            }
         }
 
         private void CreateExampleButton_Click(object sender, EventArgs e)
@@ -101,14 +178,14 @@ NÄCHSTE SCHRITTE:
             // Main level - add some devices and a submenu
             folder.RootLevel.Name = "Main Menu";
 
-            // Add first 3 devices as toggles
+            // Add first 3 devices as toggles (with labels)
             var devices = _plugin.Devices.Take(3).ToList();
-            foreach (var device in devices)
+            for (int i = 0; i < devices.Count && i < 3; i++)
             {
                 folder.RootLevel.Buttons.Add(new FlexibleButton(
-                    device.Name, // Label will show device name
+                    $"Device {i + 1}", // Custom label
                     "DeviceToggle",
-                    deviceId: device.Id
+                    deviceId: devices[i].Id
                 ));
             }
 
@@ -118,39 +195,43 @@ NÄCHSTE SCHRITTE:
                 Name = "More Devices"
             };
 
-            // Add more devices to submenu
-            var moreDevices = _plugin.Devices.Skip(3).Take(5).ToList();
-            foreach (var device in moreDevices)
+            // Add more devices to submenu (with labels)
+            var moreDevices = _plugin.Devices.Skip(3).Take(4).ToList();
+            for (int i = 0; i < moreDevices.Count; i++)
             {
                 subLevel.Buttons.Add(new FlexibleButton(
-                    device.Name,
+                    $"Extra {i + 1}", // Custom label
                     "DeviceToggle",
-                    deviceId: device.Id
+                    deviceId: moreDevices[i].Id
                 ));
             }
 
             // Add navigation button to main level
-            folder.RootLevel.Buttons.Add(new FlexibleButton(
-                "More Devices →",
-                subLevel
-            ));
+            if (moreDevices.Count > 0)
+            {
+                folder.RootLevel.Buttons.Add(new FlexibleButton(
+                    "More →",
+                    subLevel
+                ));
+            }
 
-            // Save the folder
-            _plugin.AddFlexibleFolder(folder);
-
-            MessageBox.Show(
-                "Example folder created!\n\n" +
-                "Add 'Flexible Folder 1' to your Loupedeck to see it.\n\n" +
-                "Features:\n" +
-                "- Device names are displayed\n" +
-                "- Navigation button (purple) opens submenu\n" +
-                "- Toggle buttons (green/gray) control devices",
-                "Success",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
-
-            Close();
+            // Open in editor for further customization
+            var editor = new FlexibleFolderEditorDialog(_plugin, folder);
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                LoadFolders();
+                MessageBox.Show(
+                    "Example folder created and saved!\n\n" +
+                    "Add 'Flexible Folder 1-10' to your Loupedeck to use it.\n\n" +
+                    "Features:\n" +
+                    "- Only your custom labels are shown\n" +
+                    "- Navigation buttons (purple) open submenus\n" +
+                    "- Toggle buttons (green/gray) control devices",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            }
         }
     }
 }
