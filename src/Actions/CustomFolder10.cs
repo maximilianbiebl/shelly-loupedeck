@@ -38,7 +38,7 @@ namespace ShellyLoupedeckPlugin.Actions
             return true;
         }
 
-        protected override void Activate()
+        public override void Activate()
         {
             // Reset to main menu when folder is opened
             DebugLogger.Log("[CustomFolder10] Folder activated, resetting to main menu");
