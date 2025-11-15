@@ -4,7 +4,7 @@ using System.Linq;
 using Loupedeck;
 using ShellyLoupedeckPlugin.Models;
 
-namespace ShellyLoupedeckPlugin.Actions
+namespace ShellyLoupedeckPlugin.Commands
 {
     public class FolderBuilderCommand : PluginDynamicCommand
     {
@@ -13,11 +13,9 @@ namespace ShellyLoupedeckPlugin.Actions
         private string _selectedFolderId = null; // Currently selected folder for editing
 
         public FolderBuilderCommand()
+            : base("Folder Builder", "Create and customize control folders", "Configuration")
         {
             DebugLogger.Log("=== FolderBuilderCommand constructor called ===");
-            DisplayName = "Folder Builder";
-            Description = "Create and customize control folders";
-            GroupName = "Configuration";
             DebugLogger.Log($"FolderBuilderCommand: DisplayName={DisplayName}, GroupName={GroupName}");
         }
 
