@@ -245,7 +245,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (cmdParts[0] == "colormenu" && cmdParts.Length >= 3)
             {
                 var channel = cmdParts[1].ToUpper();
-                return $"{channel} (Red/Green/Blue)"[..1] + channel[1..].ToLower();
+                return channel.ToUpper();
             }
 
             // Display commands - show current value
