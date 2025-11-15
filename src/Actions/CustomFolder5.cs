@@ -226,12 +226,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return "Back";
 
-            // Extract command ID from full action parameter
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2) return actionParameter;
-
-            var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
+            var cmdParts = actionParameter.Split('_');
 
             // Device menu options
             if (cmdParts[0] == "devicesetting" && cmdParts.Length >= 3)
@@ -390,16 +385,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                // Extract command ID from full action parameter
-                var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-                if (parts.Length < 2)
-                {
-                    builder.DrawText("?", BitmapColor.White);
-                    return builder.ToImage();
-                }
-
-                var commandId = parts[1];
-                var cmdParts = commandId.Split('_');
+                var cmdParts = actionParameter.Split('_');
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -730,18 +716,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            // Extract command ID from full action parameter
-            var actionParts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (actionParts.Length < 2)
-            {
-                DebugLogger.Log($"[CustomFolder5] Failed to parse action parameter");
-                return;
-            }
-
-            var commandId = actionParts[1];
-            DebugLogger.Log($"[CustomFolder5] Command ID: {commandId}");
-
-            var cmdParts = commandId.Split('_');
+            var cmdParts = actionParameter.Split('_');
             DebugLogger.Log($"[CustomFolder5] Command parts: {string.Join(", ", cmdParts)}");
             if (cmdParts.Length < 2) return;
 
