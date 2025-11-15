@@ -127,6 +127,58 @@ namespace ShellyLoupedeckPlugin.Actions
                 var submenuParts = _currentSubmenu.Split('_');
                 var submenuType = submenuParts[0];
 
+                // Handle "action_" prefixed submenus (opened directly from Level 1)
+                // Format: action_brightness_deviceId or action_dim_deviceId etc.
+                if (submenuType == "action" && submenuParts.Length >= 3)
+                {
+                    submenuType = submenuParts[1]; // Get the actual action type (brightness, dim, color, temperature)
+                    var deviceId = submenuParts[2];
+
+                    // Same buttons as non-action menus
+                    switch (submenuType)
+                    {
+                        case "brightness":
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-10"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-5"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-1"));
+                            actions.Add(CreateCommandName($"display_brightness_{deviceId}"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+1"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+5"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+10"));
+                            return actions;
+
+                        case "dim":
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_-10"));
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_-5"));
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_-1"));
+                            actions.Add(CreateCommandName($"display_dim_{deviceId}"));
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_+1"));
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_+5"));
+                            actions.Add(CreateCommandName($"adjust_dim_{deviceId}_+10"));
+                            return actions;
+
+                        case "temperature":
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-2"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-1"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-0.5"));
+                            actions.Add(CreateCommandName($"display_temperature_{deviceId}"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+0.5"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+1"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+2"));
+                            return actions;
+
+                        case "color":
+                            // Color channel selection menu with presets
+                            actions.Add(CreateCommandName($"colorpreset_white_{deviceId}"));
+                            actions.Add(CreateCommandName($"colorpreset_warmwhite_{deviceId}"));
+                            actions.Add(CreateCommandName($"colorpreset_coldwhite_{deviceId}"));
+                            actions.Add(CreateCommandName($"colormenu_r_{deviceId}"));
+                            actions.Add(CreateCommandName($"colormenu_g_{deviceId}"));
+                            actions.Add(CreateCommandName($"colormenu_b_{deviceId}"));
+                            return actions;
+                    }
+                }
+
                 // Level 4: RGB Adjustment (color_r, color_g, color_b)
                 if (submenuType == "color" && submenuParts.Length >= 3 && (submenuParts[1] == "r" || submenuParts[1] == "g" || submenuParts[1] == "b"))
                 {
@@ -148,6 +200,9 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (submenuType == "color" && submenuParts.Length == 2)
                 {
                     var deviceId = submenuParts[1];
+                    actions.Add(CreateCommandName($"colorpreset_white_{deviceId}"));
+                    actions.Add(CreateCommandName($"colorpreset_warmwhite_{deviceId}"));
+                    actions.Add(CreateCommandName($"colorpreset_coldwhite_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_r_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_g_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_b_{deviceId}"));
@@ -333,6 +388,18 @@ namespace ShellyLoupedeckPlugin.Actions
                     case "dim": return "Dimmer";
                     case "color": return "Color";
                     case "temperature": return "Temperature";
+                }
+            }
+
+            // Color presets
+            if (cmdParts[0] == "colorpreset" && cmdParts.Length >= 3)
+            {
+                var preset = cmdParts[1];
+                switch (preset)
+                {
+                    case "white": return "Weiß";
+                    case "warmwhite": return "Warm Weiß";
+                    case "coldwhite": return "Kalt Weiß";
                 }
             }
 
@@ -578,6 +645,26 @@ namespace ShellyLoupedeckPlugin.Actions
                         case "temperature":
                             builder.Clear(new BitmapColor(150, 80, 0));
                             builder.DrawText("🌡", BitmapColor.White, 32);
+                            break;
+                    }
+                    return builder.ToImage();
+                }                // Color presets
+                if (cmdParts[0] == "colorpreset" && cmdParts.Length >= 3)
+                {
+                    var preset = cmdParts[1];
+                    switch (preset)
+                    {
+                        case "white":
+                            builder.Clear(new BitmapColor(255, 255, 255));
+                            builder.DrawText("W", BitmapColor.Black, 40);
+                            break;
+                        case "warmwhite":
+                            builder.Clear(new BitmapColor(255, 200, 150));
+                            builder.DrawText("WW", BitmapColor.Black, 32);
+                            break;
+                        case "coldwhite":
+                            builder.Clear(new BitmapColor(200, 220, 255));
+                            builder.DrawText("CW", BitmapColor.Black, 32);
                             break;
                     }
                     return builder.ToImage();
@@ -870,6 +957,11 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var parts = _currentSubmenu.Split('_');
 
+                    // From action_ submenu (opened directly from Level 1) -> back to Level 1 (main)
+                    if (parts[0] == "action")
+                    {
+                        _currentSubmenu = null;
+                    }
                     // From level 4 (color_r_deviceId or color_g_deviceId or color_b_deviceId) -> level 3b (color_deviceId)
                     if (parts[0] == "color" && parts.Length >= 3 && (parts[1] == "r" || parts[1] == "g" || parts[1] == "b"))
                     {
@@ -938,7 +1030,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 var actionType = cmdParts[1]; // brightness, dim, color, temperature
                 var deviceId = cmdParts[2];
                 DebugLogger.Log($"[CustomFolder2] Opening action submenu {actionType} for: {deviceId}");
-                _currentSubmenu = $"{actionType}_{deviceId}";
+                _currentSubmenu = $"action_{actionType}_{deviceId}";  // Use "action_" prefix to distinguish from device settings
                 DebugLogger.Log($"[CustomFolder2] Set submenu to: {_currentSubmenu}");
 
                 // Force folder refresh
@@ -976,10 +1068,40 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
 
                 return;
+            }            // Apply color preset
+            if (cmdParts[0] == "colorpreset" && cmdParts.Length >= 3)
+            {
+                var preset = cmdParts[1];
+                var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder2] Applying color preset {preset} to: {deviceId}");
+
+                int r = 0, g = 0, b = 0;
+                switch (preset)
+                {
+                    case "white":
+                        r = 255; g = 255; b = 255;
+                        break;
+                    case "warmwhite":
+                        r = 255; g = 200; b = 150;
+                        break;
+                    case "coldwhite":
+                        r = 200; g = 220; b = 255;
+                        break;
+                }
+
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device != null)
+                {
+                    int brightness = GetDeviceBrightness(device);
+                    if (brightness == 0) brightness = 100;
+                    _ = _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, brightness: brightness);
+                }
+
+                return;
             }
 
             // Open color channel menu
-            if (cmdParts[0] == "colormenu" && cmdParts.Length >= 3)
+            if (cmdParts[0] == "colormenu") && cmdParts.Length >= 3)
             {
                 var channel = cmdParts[1];
                 var deviceId = cmdParts[2];
@@ -1159,8 +1281,32 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        private async System.Threading.Tasks.Task ToggleGroupAsync(DeviceGroup group)
+                private async System.Threading.Tasks.Task ToggleGroupAsync(DeviceGroup group)
         {
+            // Determine target state: if any device is on, turn all off; if all are off, turn all on
+            bool anyDeviceOn = false;
+            foreach (var deviceId in group.DeviceIds)
+            {
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device != null)
+                {
+                    var deviceType = device.GetDeviceType();
+                    if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+                    {
+                        if (device.Status?.Lights != null && device.Status.Lights.Count > 0 && device.Status.Lights[0].IsOn)
+                            anyDeviceOn = true;
+                    }
+                    else
+                    {
+                        if (device.Status?.Relays != null && device.Status.Relays.Count > 0 && device.Status.Relays[0].IsOn)
+                            anyDeviceOn = true;
+                    }
+                    if (anyDeviceOn) break;
+                }
+            }
+
+            bool targetState = !anyDeviceOn; // If any is on, turn all off; if all off, turn all on
+
             for (int i = 0; i < group.DeviceIds.Count; i++)
             {
                 var deviceId = group.DeviceIds[i];
@@ -1171,21 +1317,14 @@ namespace ShellyLoupedeckPlugin.Actions
                     _plugin.RecordUserAction();
 
                     var deviceType = device.GetDeviceType();
-                    bool currentState = false;
 
                     if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
                     {
-                        if (device.Status?.Lights != null && device.Status.Lights.Count > 0)
-                            currentState = device.Status.Lights[0].IsOn;
-
-                        await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, !currentState);
+                        await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, targetState);
                     }
                     else
                     {
-                        if (device.Status?.Relays != null && device.Status.Relays.Count > 0)
-                            currentState = device.Status.Relays[0].IsOn;
-
-                        await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !currentState);
+                        await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, targetState);
                     }
 
                     if (i < group.DeviceIds.Count - 1)
