@@ -99,26 +99,26 @@ namespace ShellyLoupedeckPlugin.Actions
                 var submenuType = submenuParts[0];
 
                 // Level 4: RGB Adjustment (color_r, color_g, color_b)
-                if (submenuType == "color" && submenuParts.Length >= 3)
+                if (submenuType == "color" && submenuParts.Length >= 3 && (submenuParts[1] == "r" || submenuParts[1] == "g" || submenuParts[1] == "b"))
                 {
                     var colorChannel = submenuParts[1]; // r, g, or b
                     var deviceId = submenuParts[2];
 
-                    if (colorChannel == "r" || colorChannel == "g" || colorChannel == "b")
-                    {
-                        // RGB adjustment menu
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-50"));
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-20"));
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-5"));
-                        actions.Add(CreateCommandName($"display_color_{colorChannel}_{deviceId}"));
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+5"));
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+20"));
-                        actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+50"));
-                        return actions;
-                    }
+                    // RGB adjustment menu
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-50"));
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-20"));
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_-5"));
+                    actions.Add(CreateCommandName($"display_color_{colorChannel}_{deviceId}"));
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+5"));
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+20"));
+                    actions.Add(CreateCommandName($"adjust_color_{colorChannel}_{deviceId}_+50"));
+                    return actions;
+                }
 
-                    // Level 3b: Color channel selection
-                    deviceId = submenuParts[1];
+                // Level 3b: Color channel selection (color_deviceId)
+                if (submenuType == "color" && submenuParts.Length == 2)
+                {
+                    var deviceId = submenuParts[1];
                     actions.Add(CreateCommandName($"colormenu_r_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_g_{deviceId}"));
                     actions.Add(CreateCommandName($"colormenu_b_{deviceId}"));
@@ -735,17 +735,22 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var parts = _currentSubmenu.Split('_');
 
-                    // From level 4 (color_r/g/b_deviceId) -> level 3b (color_deviceId)
+                    // From level 4 (color_r_deviceId or color_g_deviceId or color_b_deviceId) -> level 3b (color_deviceId)
                     if (parts[0] == "color" && parts.Length >= 3 && (parts[1] == "r" || parts[1] == "g" || parts[1] == "b"))
                     {
                         _currentSubmenu = $"color_{parts[2]}";
                     }
-                    // From level 3 (any adjustment) -> level 2 (device settings)
-                    else if (parts.Length >= 2)
+                    // From level 3 (brightness/dim/temperature/color) -> level 2 (device settings)
+                    else if (parts.Length >= 2 && parts[0] != "device")
                     {
                         _currentSubmenu = $"device_{parts[1]}";
                     }
-                    // From level 2 (device settings) -> level 1 (main)
+                    // From level 2 (device_deviceId) -> level 1 (main)
+                    else if (parts[0] == "device")
+                    {
+                        _currentSubmenu = null;
+                    }
+                    // Fallback
                     else
                     {
                         _currentSubmenu = null;
