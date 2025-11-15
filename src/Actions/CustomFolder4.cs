@@ -11,6 +11,7 @@ namespace ShellyLoupedeckPlugin.Actions
         private const int SLOT_INDEX = 3;
         private ShellyLoupedeckPlugin _plugin;
 
+        private System.Threading.Timer _refreshTimer;
         // Navigation state
         // null = main menu (device list)
         // "device_{deviceId}" = device settings menu
@@ -43,13 +44,41 @@ namespace ShellyLoupedeckPlugin.Actions
             // Reset to main menu when folder is opened
             DebugLogger.Log("[CustomFolder4] Folder activated, resetting to main menu");
             _currentSubmenu = null;
+
+            // Start refresh timer (update display values every 5 seconds)
+            _refreshTimer?.Dispose();
+            _refreshTimer = new System.Threading.Timer(
+                _ => {
+                    try
+                    {
+                        ActionImageChanged();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[CustomFolder4] Timer refresh failed: {ex.Message}");
+                    }
+                },
+                null,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5)
+            );
+
             return base.Activate();
+        }
+
+        protected override void Deactivate()
+        {
+            // Stop refresh timer when folder is closed
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+            base.Deactivate();
         }
 
         public override bool Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.FoldersUpdated -= OnFoldersUpdated;
+            _refreshTimer?.Dispose();
             return true;
         }
 
@@ -1282,6 +1311,9 @@ namespace ShellyLoupedeckPlugin.Actions
             // Update device status
             await System.Threading.Tasks.Task.Delay(500);
             await RefreshDeviceStatus(deviceId);
+
+            // Immediate UI refresh
+            ActionImageChanged();
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceDimmerAsync(string deviceId, int adjustment)
@@ -1302,6 +1334,9 @@ namespace ShellyLoupedeckPlugin.Actions
 
             await System.Threading.Tasks.Task.Delay(500);
             await RefreshDeviceStatus(deviceId);
+
+            // Immediate UI refresh
+            ActionImageChanged();
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceColorChannelAsync(string deviceId, string channel, int adjustment)
@@ -1334,6 +1369,9 @@ namespace ShellyLoupedeckPlugin.Actions
 
             await System.Threading.Tasks.Task.Delay(500);
             await RefreshDeviceStatus(deviceId);
+
+            // Immediate UI refresh
+            ActionImageChanged();
         }
 
         private async System.Threading.Tasks.Task RefreshDeviceStatus(string deviceId)
