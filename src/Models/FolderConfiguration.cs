@@ -30,6 +30,10 @@ namespace ShellyLoupedeckPlugin.Models
         public string Parameter { get; set; } // e.g., "red" for color, "50" for brightness, "ch0" for channel
         public string CustomLabel { get; set; } // Optional custom label
 
+        // For GenericAction type
+        public string ActionName { get; set; } // Full name of the action/command class
+        public string ActionParameter { get; set; } // Parameter for the action
+
         public FolderButton()
         {
         }
@@ -41,6 +45,15 @@ namespace ShellyLoupedeckPlugin.Models
             Parameter = parameter;
             CustomLabel = customLabel;
         }
+
+        // Constructor for generic actions
+        public FolderButton(string actionName, string actionParameter, string customLabel)
+        {
+            Type = FolderButtonType.GenericAction;
+            ActionName = actionName;
+            ActionParameter = actionParameter;
+            CustomLabel = customLabel;
+        }
     }
 
     public enum FolderButtonType
@@ -49,6 +62,7 @@ namespace ShellyLoupedeckPlugin.Models
         GroupColor,        // Set color for a group
         GroupBrightness,   // Set brightness for a group
         GroupTemperature,  // Set temperature for thermostat group
-        GroupToggle        // Toggle all devices in a group
+        GroupToggle,       // Toggle all devices in a group
+        GenericAction      // Any plugin action
     }
 }

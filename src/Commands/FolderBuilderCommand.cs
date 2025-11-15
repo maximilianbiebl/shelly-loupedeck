@@ -74,10 +74,12 @@ namespace ShellyLoupedeckPlugin.Commands
             else if (_currentState == "select_button_type")
             {
                 // Button type selection
-                AddParameter("type_device_toggle", "Device Toggle", "Button Types");
-                AddParameter("type_group_color", "Group Color", "Button Types");
-                AddParameter("type_group_brightness", "Group Brightness", "Button Types");
-                AddParameter("type_group_toggle", "Group Toggle", "Button Types");
+                AddParameter("type_plugin_action", "➕ Any Plugin Action", "Button Types");
+                AddParameter("", "", "───────────");
+                AddParameter("type_device_toggle", "Device Toggle", "Quick Actions");
+                AddParameter("type_group_color", "Group Color", "Quick Actions");
+                AddParameter("type_group_brightness", "Group Brightness", "Quick Actions");
+                AddParameter("type_group_toggle", "Group Toggle", "Quick Actions");
                 AddParameter("back", "⬅ Back", "Navigation");
             }
             else if (_currentState == "select_device")
@@ -125,6 +127,45 @@ namespace ShellyLoupedeckPlugin.Commands
                 {
                     AddParameter($"grouptoggle_{group.Id}", $"{group.Name} (All)", "Groups");
                 }
+                AddParameter("back", "⬅ Back", "Navigation");
+            }
+            else if (_currentState == "select_plugin_action")
+            {
+                // Show all available plugin actions
+                // Device Actions
+                foreach (var device in _plugin.Devices)
+                {
+                    AddParameter($"action_DeviceSwitchAction_{device.Id}", device.Name, "Device Switch");
+                }
+
+                // RGBW Actions
+                var rgbwDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.RGBW);
+                foreach (var device in rgbwDevices)
+                {
+                    AddParameter($"action_RGBWModeToggle_{device.Id}", $"{device.Name} - Mode Toggle", "RGBW");
+                    AddParameter($"action_RGBWColorAdjustment_{device.Id}", $"{device.Name} - Color", "RGBW");
+                }
+
+                // Dimmer Actions
+                var dimmerDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Dimmer || d.GetDeviceType() == ShellyDeviceType.RGBW);
+                foreach (var device in dimmerDevices)
+                {
+                    AddParameter($"action_DimmerAdjustment_{device.Id}", $"{device.Name} - Dimmer", "Dimmer");
+                }
+
+                // Thermostat Actions
+                var thermostatDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Thermostat);
+                foreach (var device in thermostatDevices)
+                {
+                    AddParameter($"action_ThermostatAdjustment_{device.Id}", $"{device.Name} - Adjust", "Thermostat");
+                    AddParameter($"action_ThermostatBoostAction_{device.Id}", $"{device.Name} - Boost", "Thermostat");
+                }
+
+                // Overview/Management
+                AddParameter("action_DeviceOverviewCommand_", "Device Overview", "Management");
+                AddParameter("action_GroupManagementCommand_", "Group Management", "Management");
+                AddParameter("action_SettingsCommand_", "Settings", "Management");
+
                 AddParameter("back", "⬅ Back", "Navigation");
             }
 
@@ -214,6 +255,11 @@ namespace ShellyLoupedeckPlugin.Commands
                     _currentState = "select_group_toggle";
                     CreateParameters();
                 }
+                else if (actionParameter == "type_plugin_action")
+                {
+                    _currentState = "select_plugin_action";
+                    CreateParameters();
+                }
                 return;
             }
 
@@ -267,6 +313,22 @@ namespace ShellyLoupedeckPlugin.Commands
                 {
                     var groupId = actionParameter.Substring(12);
                     AddGroupToggleButton(groupId);
+                }
+                return;
+            }
+
+            // Plugin action selection
+            if (_currentState == "select_plugin_action")
+            {
+                if (actionParameter.StartsWith("action_"))
+                {
+                    var parts = actionParameter.Substring(7).Split('_'); // Remove "action_" prefix
+                    if (parts.Length >= 2)
+                    {
+                        var actionName = parts[0];
+                        var actionParam = parts.Length > 1 ? parts[1] : "";
+                        AddGenericActionButton(actionName, actionParam);
+                    }
                 }
                 return;
             }
@@ -346,6 +408,34 @@ namespace ShellyLoupedeckPlugin.Commands
             if (folder != null && group != null)
             {
                 folder.Buttons.Add(new FolderButton(FolderButtonType.GroupToggle, groupId, null, $"{group.Name} ALL"));
+                _plugin.UpdateFolder(folder);
+
+                _currentState = $"edit_{_selectedFolderId}";
+                CreateParameters();
+            }
+        }
+
+        private void AddGenericActionButton(string actionName, string actionParameter)
+        {
+            var folder = _plugin.Folders.FirstOrDefault(f => f.Id == _selectedFolderId);
+
+            if (folder != null)
+            {
+                // Generate display label based on action and parameter
+                string label = actionName;
+
+                // Find device name if applicable
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParameter);
+                if (device != null)
+                {
+                    label = $"{device.Name} - {actionName.Replace("Action", "").Replace("Command", "").Replace("Adjustment", "")}";
+                }
+                else if (string.IsNullOrEmpty(actionParameter))
+                {
+                    label = actionName.Replace("Action", "").Replace("Command", "").Replace("Adjustment", "");
+                }
+
+                folder.Buttons.Add(new FolderButton(actionName, actionParameter, label));
                 _plugin.UpdateFolder(folder);
 
                 _currentState = $"edit_{_selectedFolderId}";

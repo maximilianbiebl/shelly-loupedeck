@@ -103,6 +103,10 @@ namespace ShellyLoupedeckPlugin.Actions
                     case FolderButtonType.GroupToggle:
                         commandName = $"grouptoggle_{button.TargetId}";
                         break;
+
+                    case FolderButtonType.GenericAction:
+                        commandName = $"generic_{button.ActionName}_{button.ActionParameter}";
+                        break;
                 }
 
                 if (commandName != null)
@@ -158,6 +162,22 @@ namespace ShellyLoupedeckPlugin.Actions
                     var groupId = cmdParts.Length >= 2 ? cmdParts[1] : null;
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     return group?.Name ?? "Toggle";
+
+                case "generic":
+                    // For generic actions, use the custom label from folder configuration
+                    if (folder != null && cmdParts.Length >= 2)
+                    {
+                        var actionName = cmdParts.Length >= 2 ? cmdParts[1] : null;
+                        var actionParam = cmdParts.Length >= 3 ? cmdParts[2] : null;
+                        var genericButton = folder.Buttons.FirstOrDefault(b =>
+                            b.Type == FolderButtonType.GenericAction &&
+                            b.ActionName == actionName &&
+                            b.ActionParameter == actionParam);
+
+                        if (genericButton != null)
+                            return genericButton.CustomLabel ?? actionName;
+                    }
+                    return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
             }
 
             return commandId;
@@ -344,6 +364,24 @@ namespace ShellyLoupedeckPlugin.Actions
                         var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                         if (group != null)
                             _ = ToggleGroupAsync(group);
+                    }
+                    break;
+
+                case "generic":
+                    if (cmdParts.Length >= 2)
+                    {
+                        var actionName = cmdParts[1];
+                        var actionParam = cmdParts.Length >= 3 ? cmdParts[2] : "";
+
+                        // Handle most common generic actions
+                        // Note: More complex actions (adjustments, etc.) are not fully supported
+                        // as they require UI interaction that can't be automated here
+                        if (actionName == "DeviceSwitchAction" && !string.IsNullOrEmpty(actionParam))
+                        {
+                            _ = ToggleDeviceAsync(actionParam, 0);
+                        }
+                        // Other actions would need to be triggered through the plugin system
+                        // which is not directly accessible here
                     }
                     break;
             }
