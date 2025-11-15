@@ -361,7 +361,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var deviceId = cmdParts[2];
                     var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (dev != null)
+                    if (device != null)
                     {
                         int currentBrightness = GetDeviceBrightness(device);
                         var grayValue = (byte)(currentBrightness * 2.55);
@@ -376,7 +376,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var deviceId = cmdParts[2];
                     var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (dev != null)
+                    if (device != null)
                     {
                         double currentTemp = GetDeviceTemperature(device);
                         builder.Clear(new BitmapColor(100, 60, 0));
@@ -432,7 +432,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 int.TryParse(channelParam.Substring(2), out channel);
 
                             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                            if (dev != null)
+                            if (device != null)
                             {
                                 bool isOn = false;
                                 var deviceType = device.GetDeviceType();
