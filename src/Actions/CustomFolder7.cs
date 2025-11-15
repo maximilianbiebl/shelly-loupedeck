@@ -46,15 +46,12 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            // Trigger refresh of folder display when device states change
-            ActionImageChanged();
+            // Folder contents will be refreshed when folder is next opened
         }
 
         private void OnFoldersUpdated(object sender, EventArgs e)
         {
             UpdateDisplayName();
-            // Trigger refresh of folder parameters when folder configuration changes
-            ActionImageChanged();
         }
 
         private void UpdateDisplayName()
