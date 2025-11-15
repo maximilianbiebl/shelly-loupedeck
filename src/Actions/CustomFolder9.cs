@@ -84,12 +84,29 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            // Folder contents will be refreshed when folder is next opened
+            // Refresh folder display when device data changes
+            try
+            {
+                ButtonActionNamesChanged();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CustomFolder9] OnDevicesUpdated ButtonActionNamesChanged failed: {ex.Message}");
+            }
         }
 
         private void OnFoldersUpdated(object sender, EventArgs e)
         {
             UpdateDisplayName();
+            // Also refresh folder contents
+            try
+            {
+                ButtonActionNamesChanged();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CustomFolder9] OnFoldersUpdated ButtonActionNamesChanged failed: {ex.Message}");
+            }
         }
 
         private void UpdateDisplayName()
@@ -98,7 +115,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder != null)
                 DisplayName = folder.Name;
             else
-                DisplayName = "Custom Folder 9 (Empty)";
+                DisplayName = "Custom Folder 1 (Empty)";
         }
 
         private FolderConfiguration GetAssignedFolder()
@@ -168,13 +185,14 @@ namespace ShellyLoupedeckPlugin.Actions
                             return actions;
 
                         case "color":
-                            // Color channel selection menu with presets
+                            // Color channel selection menu with presets and brightness
                             actions.Add(CreateCommandName($"colorpreset_white_{deviceId}"));
                             actions.Add(CreateCommandName($"colorpreset_warmwhite_{deviceId}"));
                             actions.Add(CreateCommandName($"colorpreset_coldwhite_{deviceId}"));
                             actions.Add(CreateCommandName($"colormenu_r_{deviceId}"));
                             actions.Add(CreateCommandName($"colormenu_g_{deviceId}"));
                             actions.Add(CreateCommandName($"colormenu_b_{deviceId}"));
+                            actions.Add(CreateCommandName($"devicesetting_brightness_{deviceId}"));
                             return actions;
                     }
                 }
@@ -304,7 +322,10 @@ namespace ShellyLoupedeckPlugin.Actions
                     }
                 }
 
-                return actions;
+                // If we reach here, the submenu is invalid - reset to main menu
+                DebugLogger.Log($"[CustomFolder9] Invalid submenu: {_currentSubmenu}, resetting to main menu");
+                _currentSubmenu = null;
+                // Fall through to main menu display
             }
 
             // Level 1: Main menu - show devices from folder config
