@@ -203,7 +203,7 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var deviceId = cmdParts.Length >= 3 ? cmdParts[2] : null;
                 var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                return dev?.Name ?? "Adjust";
+                return device?.Name ?? "Adjust";
             }
 
             // Handle display commands - show current value
