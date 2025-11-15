@@ -9,7 +9,6 @@ namespace ShellyLoupedeckPlugin.Actions
     public class GroupControlFolder : PluginDynamicFolder
     {
         private ShellyLoupedeckPlugin _plugin;
-        private string _currentGroupId = null;
 
         private Dictionary<string, (int R, int G, int B, int W)> _colorPresets = new Dictionary<string, (int, int, int, int)>
         {
@@ -25,7 +24,7 @@ namespace ShellyLoupedeckPlugin.Actions
         public GroupControlFolder()
         {
             DisplayName = "Group Controls";
-            Description = "Folder with group control buttons";
+            Description = "Configurable folder with group control buttons";
         }
 
         public override bool Load()
@@ -69,7 +68,6 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
-            // Extract folder ID from parameter
             if (string.IsNullOrEmpty(actionParameter) || !actionParameter.StartsWith("folder_"))
                 return actions;
 
@@ -78,7 +76,6 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder == null)
                 return actions;
 
-            // Build button list from folder configuration
             foreach (var button in folder.Buttons)
             {
                 string commandName = null;
@@ -134,7 +131,6 @@ namespace ShellyLoupedeckPlugin.Actions
             var cmdParts = commandId.Split('_');
             if (cmdParts.Length < 2) return commandId;
 
-            // Find the button configuration for custom labels
             var targetId = cmdParts.Length >= 2 ? cmdParts[1] : null;
             var parameter = cmdParts.Length >= 3 ? cmdParts[2] : null;
             var button = folder.Buttons.FirstOrDefault(b => b.TargetId == targetId && b.Parameter == parameter);
@@ -142,26 +138,23 @@ namespace ShellyLoupedeckPlugin.Actions
             if (button != null && !string.IsNullOrEmpty(button.CustomLabel))
                 return button.CustomLabel;
 
-            // Default display names
             switch (cmdParts[0])
             {
                 case "toggle":
-                    var deviceId = cmdParts.Length >= 2 ? cmdParts[1] : null;
-                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    return device?.Name ?? deviceId;
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == targetId);
+                    return device?.Name ?? targetId;
 
                 case "groupcolor":
-                    return cmdParts.Length >= 3 ? cmdParts[2].ToUpper() : "Color";
+                    return parameter?.ToUpper() ?? "Color";
 
                 case "groupbrightness":
-                    return cmdParts.Length >= 3 ? $"{cmdParts[2]}%" : "Brightness";
+                    return parameter != null ? $"{parameter}%" : "Brightness";
 
                 case "grouptemp":
-                    return cmdParts.Length >= 3 ? $"{cmdParts[2]}°C" : "Temperature";
+                    return parameter != null ? $"{parameter}°C" : "Temperature";
 
                 case "grouptoggle":
-                    var groupId = cmdParts.Length >= 2 ? cmdParts[1] : null;
-                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == targetId);
                     return group?.Name ?? "Toggle";
             }
 
@@ -189,24 +182,24 @@ namespace ShellyLoupedeckPlugin.Actions
 
                 var commandId = parts[1];
                 var cmdParts = commandId.Split('_');
-                if (cmdParts.Length < 3)
+                if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
                     return builder.ToImage();
                 }
 
-                var groupId = cmdParts[1];
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-
                 switch (cmdParts[0])
                 {
                     case "toggle":
-                        if (cmdParts.Length >= 5)
+                        if (cmdParts.Length >= 3)
                         {
-                            var deviceId = cmdParts[2];
-                            int.TryParse(cmdParts[4], out int channel);
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                            var deviceId = cmdParts[1];
+                            var channelParam = cmdParts[2];
+                            int channel = 0;
+                            if (channelParam.StartsWith("ch"))
+                                int.TryParse(channelParam.Substring(2), out channel);
 
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                             if (device != null)
                             {
                                 bool isOn = false;
@@ -230,7 +223,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                         break;
 
-                    case "color":
+                    case "groupcolor":
                         if (cmdParts.Length >= 3)
                         {
                             var colorKey = cmdParts[2];
@@ -246,7 +239,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                         break;
 
-                    case "brightness":
+                    case "groupbrightness":
                         if (cmdParts.Length >= 3 && int.TryParse(cmdParts[2], out int bright))
                         {
                             var grayValue = (byte)(bright * 2.55);
@@ -255,11 +248,25 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                         break;
 
-                    case "temp":
+                    case "grouptemp":
                         if (cmdParts.Length >= 3)
                         {
                             builder.Clear(BitmapColor.Black);
                             builder.DrawText($"{cmdParts[2]}°C", BitmapColor.White, 20);
+                        }
+                        break;
+
+                    case "grouptoggle":
+                        if (cmdParts.Length >= 2)
+                        {
+                            var groupId = cmdParts[1];
+                            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                            if (group != null)
+                            {
+                                builder.Clear(new BitmapColor(0, 150, 200));
+                                builder.DrawText(group.Name, BitmapColor.White, 12);
+                                builder.DrawText("ALL", BitmapColor.White, 18);
+                            }
                         }
                         break;
                 }
@@ -278,42 +285,64 @@ namespace ShellyLoupedeckPlugin.Actions
 
             var commandId = parts[1];
             var cmdParts = commandId.Split('_');
-            if (cmdParts.Length < 3) return;
-
-            var groupId = cmdParts[1];
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-            if (group == null) return;
+            if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();
 
             switch (cmdParts[0])
             {
                 case "toggle":
-                    if (cmdParts.Length >= 5)
+                    if (cmdParts.Length >= 3)
                     {
-                        var deviceId = cmdParts[2];
-                        int.TryParse(cmdParts[4], out int channel);
+                        var deviceId = cmdParts[1];
+                        var channelParam = cmdParts[2];
+                        int channel = 0;
+                        if (channelParam.StartsWith("ch"))
+                            int.TryParse(channelParam.Substring(2), out channel);
+
                         _ = ToggleDeviceAsync(deviceId, channel);
                     }
                     break;
 
-                case "color":
+                case "groupcolor":
                     if (cmdParts.Length >= 3)
                     {
+                        var groupId = cmdParts[1];
                         var colorKey = cmdParts[2];
-                        if (_colorPresets.ContainsKey(colorKey))
+                        var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                        if (group != null && _colorPresets.ContainsKey(colorKey))
                             _ = SetGroupColorAsync(group, _colorPresets[colorKey]);
                     }
                     break;
 
-                case "brightness":
+                case "groupbrightness":
                     if (cmdParts.Length >= 3 && int.TryParse(cmdParts[2], out int brightness))
-                        _ = SetGroupBrightnessAsync(group, brightness);
+                    {
+                        var groupId = cmdParts[1];
+                        var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                        if (group != null)
+                            _ = SetGroupBrightnessAsync(group, brightness);
+                    }
                     break;
 
-                case "temp":
+                case "grouptemp":
                     if (cmdParts.Length >= 3 && double.TryParse(cmdParts[2], out double temp))
-                        _ = SetGroupTemperatureAsync(group, temp);
+                    {
+                        var groupId = cmdParts[1];
+                        var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                        if (group != null)
+                            _ = SetGroupTemperatureAsync(group, temp);
+                    }
+                    break;
+
+                case "grouptoggle":
+                    if (cmdParts.Length >= 2)
+                    {
+                        var groupId = cmdParts[1];
+                        var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                        if (group != null)
+                            _ = ToggleGroupAsync(group);
+                    }
                     break;
             }
         }
@@ -349,6 +378,41 @@ namespace ShellyLoupedeckPlugin.Actions
                 case ShellyDeviceType.Dimmer:
                     await _plugin.ApiClient.SetLightStateAsync(deviceId, channel, newState);
                     break;
+            }
+        }
+
+        private async System.Threading.Tasks.Task ToggleGroupAsync(DeviceGroup group)
+        {
+            for (int i = 0; i < group.DeviceIds.Count; i++)
+            {
+                var deviceId = group.DeviceIds[i];
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+
+                if (device != null)
+                {
+                    _plugin.RecordUserAction();
+
+                    var deviceType = device.GetDeviceType();
+                    bool currentState = false;
+
+                    if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+                    {
+                        if (device.Status?.Lights != null && device.Status.Lights.Count > 0)
+                            currentState = device.Status.Lights[0].IsOn;
+
+                        await _plugin.ApiClient.SetLightStateAsync(deviceId, 0, !currentState);
+                    }
+                    else
+                    {
+                        if (device.Status?.Relays != null && device.Status.Relays.Count > 0)
+                            currentState = device.Status.Relays[0].IsOn;
+
+                        await _plugin.ApiClient.SetRelayStateAsync(deviceId, 0, !currentState);
+                    }
+
+                    if (i < group.DeviceIds.Count - 1)
+                        await System.Threading.Tasks.Task.Delay(2000);
+                }
             }
         }
 
