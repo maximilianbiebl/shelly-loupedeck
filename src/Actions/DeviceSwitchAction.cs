@@ -79,15 +79,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (group.Purpose == GroupPurpose.Switch)
                 {
                     AddParameter($"group_{group.Id}", $"[Group] {group.Name}", "Groups");
-                    deviceCount++;
                 }
-            }
-
-            // If no devices, add info parameter
-            if (deviceCount == 0)
-            {
-                DebugLogger.Log("DeviceSwitchAction: No devices found, adding info parameter");
-                AddParameter("__no_devices", "No devices configured", "Info");
             }
 
             ActionImageChanged();
