@@ -17,23 +17,23 @@ namespace ShellyLoupedeckPlugin.Actions
             GroupName = "Group Folders";
         }
 
-        public override void Load()
+        public override bool Load()
         {
-            base.Load();
-
             _plugin = (ShellyLoupedeckPlugin)base.Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
             _plugin.GroupsUpdated += OnGroupsUpdated;
 
             CreateParameters();
+
+            return base.Load();
         }
 
-        public override void Unload()
+        public override bool Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
 
-            base.Unload();
+            return base.Unload();
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
