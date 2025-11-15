@@ -13,7 +13,7 @@ namespace ShellyLoupedeckPlugin.Commands
         private string _selectedFolderId = null; // Currently selected folder for editing
 
         public FolderBuilderCommand()
-            : base("Folder Builder", "Create and customize control folders", "Configuration")
+            : base("Folder Builder", "Create and customize control folders", "Folders")
         {
             DebugLogger.Log("=== FolderBuilderCommand constructor called ===");
             DebugLogger.Log($"FolderBuilderCommand: DisplayName={DisplayName}, GroupName={GroupName}");
