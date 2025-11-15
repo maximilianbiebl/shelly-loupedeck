@@ -51,7 +51,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 _ => {
                     try
                     {
-                        ActionImageChanged();
+                        ButtonActionNamesChanged();
                     }
                     catch (Exception ex)
                     {
@@ -1313,7 +1313,7 @@ namespace ShellyLoupedeckPlugin.Actions
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
-            ActionImageChanged();
+            ButtonActionNamesChanged();
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceDimmerAsync(string deviceId, int adjustment)
@@ -1336,7 +1336,7 @@ namespace ShellyLoupedeckPlugin.Actions
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
-            ActionImageChanged();
+            ButtonActionNamesChanged();
         }
 
         private async System.Threading.Tasks.Task AdjustDeviceColorChannelAsync(string deviceId, string channel, int adjustment)
@@ -1371,7 +1371,7 @@ namespace ShellyLoupedeckPlugin.Actions
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
-            ActionImageChanged();
+            ButtonActionNamesChanged();
         }
 
         private async System.Threading.Tasks.Task RefreshDeviceStatus(string deviceId)
