@@ -227,8 +227,25 @@ namespace ShellyLoupedeckPlugin.Commands
 
         protected override void RunCommand(string actionParameter)
         {
+            DebugLogger.Log($"=== FolderBuilderCommand RunCommand called: '{actionParameter ?? "NULL"}' ===");
+
             if (string.IsNullOrEmpty(actionParameter))
+            {
+                DebugLogger.Log("FolderBuilderCommand: No parameter provided, showing main menu");
+                // Show a help message if clicked without parameter
+                System.Windows.Forms.MessageBox.Show(
+                    "Folder Builder\n\n" +
+                    "To use Folder Builder:\n" +
+                    "1. Click on this command to see available options\n" +
+                    "2. Select 'Create New Folder' to create a folder\n" +
+                    "3. Select 'Edit: [Folder Name]' to edit existing folders\n\n" +
+                    $"Current folders: {_plugin.Folders.Count}",
+                    "Folder Builder Help",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Information
+                );
                 return;
+            }
 
             // Navigation
             if (actionParameter == "back")
@@ -253,14 +270,17 @@ namespace ShellyLoupedeckPlugin.Commands
             // Main menu actions
             if (string.IsNullOrEmpty(_currentState))
             {
+                DebugLogger.Log($"FolderBuilderCommand: Main menu action, parameter={actionParameter}");
                 if (actionParameter == "create_new")
                 {
+                    DebugLogger.Log("FolderBuilderCommand: Creating new folder...");
                     CreateNewFolder();
                 }
                 else if (actionParameter.StartsWith("edit_"))
                 {
                     _selectedFolderId = actionParameter.Substring(5);
                     _currentState = $"edit_{_selectedFolderId}";
+                    DebugLogger.Log($"FolderBuilderCommand: Editing folder {_selectedFolderId}");
                     CreateParameters();
                 }
                 return;
