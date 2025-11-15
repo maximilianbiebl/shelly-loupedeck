@@ -45,7 +45,7 @@ namespace ShellyLoupedeckPlugin.Api
             _lastRequestTime = DateTime.Now;
         }
 
-        private async Task<HttpResponseMessage> PostWithRetryAsync(string url, HttpContent content, string operationName)
+        private async Task<HttpResponseMessage> PostWithRetryAsync(string url, Func<HttpContent> contentFactory, string operationName)
         {
             const int maxRetries = 2; // Total 3 attempts (1 initial + 2 retries)
             int attempt = 0;
@@ -54,28 +54,43 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 try
                 {
-                    var response = await _httpClient.PostAsync(url, content);
-
-                    // Check if it's a rate limit error
-                    if ((response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
-                         (int)response.StatusCode == 429) && attempt < maxRetries)
+                    // Create fresh content for each attempt (HttpContent can only be used once)
+                    using (var content = contentFactory())
                     {
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        DebugLogger.Log($"  {operationName}: Rate limit error ({response.StatusCode}), attempt {attempt + 1}/{maxRetries + 1}. Waiting 2s and retrying...");
-                        DebugLogger.Log($"  {operationName}: Response content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+                        var response = await _httpClient.PostAsync(url, content);
 
-                        attempt++;
-                        await Task.Delay(2000); // Wait 2 seconds before retry
-                        continue;
+                        // Check if it's a rate limit error
+                        if ((response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                             (int)response.StatusCode == 429) && attempt < maxRetries)
+                        {
+                            var responseContent = await response.Content.ReadAsStringAsync();
+                            DebugLogger.Log($"  {operationName}: Rate limit error ({response.StatusCode}), attempt {attempt + 1}/{maxRetries + 1}. Waiting 2s and retrying...");
+                            DebugLogger.Log($"  {operationName}: Response content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                            attempt++;
+                            await Task.Delay(2000); // Wait 2 seconds before retry
+                            continue;
+                        }
+
+                        return response;
                     }
-
-                    return response;
                 }
                 catch (HttpRequestException ex)
                 {
                     if (attempt < maxRetries)
                     {
                         DebugLogger.Log($"  {operationName}: HTTP error on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
+                        attempt++;
+                        await Task.Delay(2000);
+                        continue;
+                    }
+                    throw;
+                }
+                catch (TaskCanceledException ex)
+                {
+                    if (attempt < maxRetries)
+                    {
+                        DebugLogger.Log($"  {operationName}: Timeout on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
                         attempt++;
                         await Task.Delay(2000);
                         continue;
@@ -281,18 +296,16 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/relay/control";
 
-                // Send parameters as form-urlencoded POST body (NOT query string)
-                var formContent = new FormUrlEncodedContent(new[]
+                DebugLogger.Log($"  SetRelayStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
                     new KeyValuePair<string, string>("channel", channel.ToString()),
                     new KeyValuePair<string, string>("turn", turn)
-                });
-
-                DebugLogger.Log($"  SetRelayStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
-
-                var response = await PostWithRetryAsync(url, formContent, "SetRelayStateAsync");
+                }), "SetRelayStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -318,18 +331,16 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/relay/control";
 
-                // Send parameters as form-urlencoded POST body (NOT query string)
-                var formContent = new FormUrlEncodedContent(new[]
+                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
                     new KeyValuePair<string, string>("channel", channel.ToString()),
                     new KeyValuePair<string, string>("turn", turn)
-                });
-
-                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
-
-                var response = await PostWithRetryAsync(url, formContent, "SetGen3SwitchStateAsync");
+                }), "SetGen3SwitchStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -355,18 +366,16 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/light/control";
 
-                // Send parameters as form-urlencoded POST body (NOT query string)
-                var formContent = new FormUrlEncodedContent(new[]
+                DebugLogger.Log($"  SetLightStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
+
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
                     new KeyValuePair<string, string>("channel", channel.ToString()),
                     new KeyValuePair<string, string>("turn", turn)
-                });
-
-                DebugLogger.Log($"  SetLightStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
-
-                var response = await PostWithRetryAsync(url, formContent, "SetLightStateAsync");
+                }), "SetLightStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -391,24 +400,27 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var url = $"{_serverUrl}/device/light/control";
 
-                var formParams = new List<KeyValuePair<string, string>>
-                {
-                    new KeyValuePair<string, string>("auth_key", _authKey),
-                    new KeyValuePair<string, string>("id", deviceId),
-                    new KeyValuePair<string, string>("turn", "on"),
-                    new KeyValuePair<string, string>("brightness", brightness.ToString())
-                };
-
-                if (channel.HasValue)
-                {
-                    formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
-                }
-
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
                 DebugLogger.Log($"  SetLightBrightnessAsync: URL = {url}, Body = id={deviceId}&turn=on&brightness={brightness}{channelStr}");
 
-                var formContent = new FormUrlEncodedContent(formParams);
-                var response = await PostWithRetryAsync(url, formContent, "SetLightBrightnessAsync");
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () =>
+                {
+                    var formParams = new List<KeyValuePair<string, string>>
+                    {
+                        new KeyValuePair<string, string>("auth_key", _authKey),
+                        new KeyValuePair<string, string>("id", deviceId),
+                        new KeyValuePair<string, string>("turn", "on"),
+                        new KeyValuePair<string, string>("brightness", brightness.ToString())
+                    };
+
+                    if (channel.HasValue)
+                    {
+                        formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
+                    }
+
+                    return new FormUrlEncodedContent(formParams);
+                }, "SetLightBrightnessAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightBrightnessAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -448,60 +460,60 @@ namespace ShellyLoupedeckPlugin.Api
                     DebugLogger.Log($"  SetLightColorAsync: Detected WHITE mode (W={white}), adding mode=white parameter");
                 }
 
-                var formParams = new List<KeyValuePair<string, string>>
-                {
-                    new KeyValuePair<string, string>("auth_key", _authKey),
-                    new KeyValuePair<string, string>("id", deviceId),
-                    new KeyValuePair<string, string>("turn", "on"),
-                    new KeyValuePair<string, string>("red", red.ToString()),
-                    new KeyValuePair<string, string>("green", green.ToString()),
-                    new KeyValuePair<string, string>("blue", blue.ToString()),
-                    new KeyValuePair<string, string>("white", white.ToString())
-                };
-
-                if (channel.HasValue)
-                {
-                    formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
-                }
-
-                // Add mode parameter if detected
-                if (mode != null)
-                {
-                    formParams.Add(new KeyValuePair<string, string>("mode", mode));
-                }
-
-                // Add temperature parameter for white mode if specified
-                if (temperature.HasValue && mode == "white")
-                {
-                    formParams.Add(new KeyValuePair<string, string>("temp", temperature.Value.ToString()));
-                    DebugLogger.Log($"  SetLightColorAsync: Adding temperature parameter: {temperature.Value}K");
-                }
-
-                // Add brightness/gain parameter based on mode
-                if (brightness.HasValue)
-                {
-                    if (mode == "color")
-                    {
-                        // Color mode uses 'gain' parameter for brightness control
-                        formParams.Add(new KeyValuePair<string, string>("gain", brightness.Value.ToString()));
-                        DebugLogger.Log($"  SetLightColorAsync: Adding gain parameter: {brightness.Value}%");
-                    }
-                    else
-                    {
-                        // White mode uses 'brightness' parameter
-                        formParams.Add(new KeyValuePair<string, string>("brightness", brightness.Value.ToString()));
-                        DebugLogger.Log($"  SetLightColorAsync: Adding brightness parameter: {brightness.Value}%");
-                    }
-                }
-
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var modeStr = mode != null ? $"&mode={mode}" : "";
                 var tempStr = temperature.HasValue && mode == "white" ? $"&temp={temperature.Value}" : "";
                 var brightnessStr = brightness.HasValue ? (mode == "color" ? $"&gain={brightness.Value}" : $"&brightness={brightness.Value}") : "";
                 DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}{brightnessStr}");
 
-                var formContent = new FormUrlEncodedContent(formParams);
-                var response = await PostWithRetryAsync(url, formContent, "SetLightColorAsync");
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () =>
+                {
+                    var formParams = new List<KeyValuePair<string, string>>
+                    {
+                        new KeyValuePair<string, string>("auth_key", _authKey),
+                        new KeyValuePair<string, string>("id", deviceId),
+                        new KeyValuePair<string, string>("turn", "on"),
+                        new KeyValuePair<string, string>("red", red.ToString()),
+                        new KeyValuePair<string, string>("green", green.ToString()),
+                        new KeyValuePair<string, string>("blue", blue.ToString()),
+                        new KeyValuePair<string, string>("white", white.ToString())
+                    };
+
+                    if (channel.HasValue)
+                    {
+                        formParams.Add(new KeyValuePair<string, string>("channel", channel.Value.ToString()));
+                    }
+
+                    // Add mode parameter if detected
+                    if (mode != null)
+                    {
+                        formParams.Add(new KeyValuePair<string, string>("mode", mode));
+                    }
+
+                    // Add temperature parameter for white mode if specified
+                    if (temperature.HasValue && mode == "white")
+                    {
+                        formParams.Add(new KeyValuePair<string, string>("temp", temperature.Value.ToString()));
+                    }
+
+                    // Add brightness/gain parameter based on mode
+                    if (brightness.HasValue)
+                    {
+                        if (mode == "color")
+                        {
+                            // Color mode uses 'gain' parameter for brightness control
+                            formParams.Add(new KeyValuePair<string, string>("gain", brightness.Value.ToString()));
+                        }
+                        else
+                        {
+                            // White mode uses 'brightness' parameter
+                            formParams.Add(new KeyValuePair<string, string>("brightness", brightness.Value.ToString()));
+                        }
+                    }
+
+                    return new FormUrlEncodedContent(formParams);
+                }, "SetLightColorAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightColorAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -526,16 +538,15 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var url = $"{_serverUrl}/device/thermostat/control";
 
-                var formContent = new FormUrlEncodedContent(new[]
+                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature.ToString(CultureInfo.InvariantCulture)}");
+
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
                     new KeyValuePair<string, string>("temp", temperature.ToString(CultureInfo.InvariantCulture))
-                });
-
-                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature.ToString(CultureInfo.InvariantCulture)}");
-
-                var response = await PostWithRetryAsync(url, formContent, "SetThermostatTemperatureAsync");
+                }), "SetThermostatTemperatureAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetThermostatTemperatureAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -560,16 +571,15 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var url = $"{_serverUrl}/device/thermostat/boost";
 
-                var formContent = new FormUrlEncodedContent(new[]
+                DebugLogger.Log($"  SetThermostatBoostAsync: URL = {url}, Body = id={deviceId}&boost_minutes={minutes}");
+
+                // Create content factory for retry mechanism
+                var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("auth_key", _authKey),
                     new KeyValuePair<string, string>("id", deviceId),
                     new KeyValuePair<string, string>("boost_minutes", minutes.ToString())
-                });
-
-                DebugLogger.Log($"  SetThermostatBoostAsync: URL = {url}, Body = id={deviceId}&boost_minutes={minutes}");
-
-                var response = await PostWithRetryAsync(url, formContent, "SetThermostatBoostAsync");
+                }), "SetThermostatBoostAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetThermostatBoostAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
