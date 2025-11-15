@@ -47,7 +47,7 @@ if ($Install) {
     Write-Host "Installing plugin to Loupedeck..." -ForegroundColor Yellow
 
     $loupedeckPlugins = "$env:LOCALAPPDATA\Loupedeck\Plugins\ShellyLoupedeckPlugin"
-    $buildOutput = "bin\$config\net8.0-windows"
+    $buildOutput = "bin\$config\net472"
 
     # Check if Loupedeck is running
     $loupedeckRunning = Get-Process "Loupedeck" -ErrorAction SilentlyContinue
@@ -76,7 +76,7 @@ if ($Install) {
 
 Write-Host ""
 Write-Host "=== Build Complete ===" -ForegroundColor Cyan
-Write-Host "Output directory: bin\$config\net8.0-windows" -ForegroundColor Gray
+Write-Host "Output directory: bin\$config\net472" -ForegroundColor Gray
 
 if (-not $Install) {
     Write-Host ""

@@ -57,7 +57,7 @@ Sollte `True` zurückgeben. Falls `False`, siehe **SDK_PATH.md** für Hilfe.
 3. Klicke auf **Build** → **Build Solution**
 4. Die kompilierten Dateien findest du in:
    ```
-   bin\Release\net8.0-windows\
+   bin\Release\net472\
    ```
 
 ### Mit der Kommandozeile
@@ -70,7 +70,7 @@ cd shelly-loupedeck
 dotnet build -c Release
 
 # Output ist in:
-# bin\Release\net8.0-windows\
+# bin\Release\net472\
 ```
 
 ## Schritt 4: Plugin installieren
@@ -90,7 +90,7 @@ dotnet build -c Release
    %LocalAppData%\Loupedeck\Plugins\ShellyLoupedeckPlugin\
    ```
 
-4. Kopiere alle Dateien aus `bin\Release\net8.0-windows\` in den neuen Ordner
+4. Kopiere alle Dateien aus `bin\Release\net472\` in den neuen Ordner
 
 5. Die Struktur sollte so aussehen:
    ```
