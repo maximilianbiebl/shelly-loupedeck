@@ -28,7 +28,7 @@ namespace ShellyLoupedeckPlugin.Commands
         {
             using (var builder = new BitmapBuilder(imageSize))
             {
-                builder.Clear(BitmapColor.Red);
+                builder.Clear(new BitmapColor(255, 0, 0)); // Red
                 builder.DrawText("TEST", BitmapColor.White, 20);
                 return builder.ToImage();
             }
