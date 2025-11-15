@@ -303,23 +303,23 @@ namespace ShellyLoupedeckPlugin.Actions
                         // Default display for generic actions based on type
                         if (actionName == "DeviceSwitchAction")
                         {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device?.Name ?? "Switch";
+                            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return dev?.Name ?? "Switch";
                         }
                         else if (actionName == "ThermostatBoostAction")
                         {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device != null ? $"{device.Name} Boost" : "Boost";
+                            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return dev != null ? $"{dev.Name} Boost" : "Boost";
                         }
                         else if (actionName == "RGBWModeToggle")
                         {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device != null ? $"{device.Name} Mode" : "Mode";
+                            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return dev != null ? $"{dev.Name} Mode" : "Mode";
                         }
                         else if (actionName.Contains("Adjustment"))
                         {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device?.Name ?? "Adjust";
+                            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return dev?.Name ?? "Adjust";
                         }
                     }
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
@@ -841,9 +841,9 @@ namespace ShellyLoupedeckPlugin.Actions
         private double GetDeviceTemperature(ShellyDevice device)
         {
             if (device.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
-                return device.Status.Thermostats[0].TargetTemperature;
+                return device.Status.Thermostats[0].TargetTemperature?.Value ?? 20.0;
             if (device.Thermostats != null && device.Thermostats.Count > 0)
-                return device.Thermostats[0].TargetTemperature;
+                return device.Thermostats[0].TargetTemperature?.Value ?? 20.0;
             return 20.0; // Default value
         }
 
