@@ -227,8 +227,22 @@ namespace ShellyLoupedeckPlugin.Actions
                         break;
 
                     case FolderButtonType.GenericAction:
-                        // Generic actions work directly (but not adjustments)
-                        commandName = $"generic_{button.ActionName}_{button.ActionParameter}";
+                        // Generic actions now also open submenus instead of executing directly
+                        var actionName = button.ActionName;
+                        var actionParam = button.ActionParameter;
+
+                        // Map generic actions to submenu types
+                        if (actionName == "BrightnessAdjustment" || actionName == "RGBWBrightnessAdjustment")
+                            commandName = $"openaction_brightness_{actionParam}";
+                        else if (actionName == "DimmerAdjustment")
+                            commandName = $"openaction_dim_{actionParam}";
+                        else if (actionName == "ColorAdjustment" || actionName == "RGBWColorAdjustment")
+                            commandName = $"openaction_color_{actionParam}";
+                        else if (actionName == "TemperatureAdjustment" || actionName == "ThermostatAdjustment")
+                            commandName = $"openaction_temperature_{actionParam}";
+                        else
+                            // Other actions execute directly
+                            commandName = $"generic_{actionName}_{actionParam}";
                         break;
                 }
 
@@ -249,6 +263,36 @@ namespace ShellyLoupedeckPlugin.Actions
             // Custom back button
             if (cmdParts[0] == "back")
                 return "Back";
+
+            // Open action buttons (from folder config)
+            if (cmdParts[0] == "openaction" && cmdParts.Length >= 3)
+            {
+                var actionType = cmdParts[1];
+                var deviceId = cmdParts[2];
+
+                // Try to get custom label from folder config
+                var folder = GetAssignedFolder();
+                if (folder != null)
+                {
+                    foreach (var button in folder.Buttons)
+                    {
+                        if (button.Type == FolderButtonType.GenericAction &&
+                            button.ActionParameter == deviceId &&
+                            !string.IsNullOrEmpty(button.CustomLabel))
+                        {
+                            return button.CustomLabel;
+                        }
+                    }
+                }
+
+                // Fallback: device name + action type
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device != null)
+                {
+                    return $"{device.Name} - {actionType}";
+                }
+                return actionType;
+            }
 
             // Device menu options
             if (cmdParts[0] == "devicesetting" && cmdParts.Length >= 3)
@@ -419,6 +463,68 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
+                    return builder.ToImage();
+                }
+
+                // Open action buttons (from folder config)
+                if (cmdParts[0] == "openaction" && cmdParts.Length >= 3)
+                {
+                    var actionType = cmdParts[1];
+                    var deviceId = cmdParts[2];
+
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                    bool isOn = device != null && GetDeviceState(device, 0);
+
+                    // Use different colors based on action type
+                    BitmapColor bgColor;
+                    string icon;
+
+                    switch (actionType)
+                    {
+                        case "brightness":
+                        case "dim":
+                            bgColor = isOn ? new BitmapColor(100, 100, 0) : new BitmapColor(50, 50, 0);
+                            icon = "☀";
+                            break;
+                        case "color":
+                            bgColor = isOn ? new BitmapColor(100, 50, 150) : new BitmapColor(50, 25, 75);
+                            icon = "🎨";
+                            break;
+                        case "temperature":
+                            bgColor = isOn ? new BitmapColor(150, 80, 0) : new BitmapColor(75, 40, 0);
+                            icon = "🌡";
+                            break;
+                        default:
+                            bgColor = isOn ? new BitmapColor(0, 100, 0) : new BitmapColor(60, 60, 60);
+                            icon = "⚙";
+                            break;
+                    }
+
+                    builder.Clear(bgColor);
+
+                    // Try to get custom label from folder config
+                    var folder = GetAssignedFolder();
+                    string labelText = null;
+                    if (folder != null)
+                    {
+                        foreach (var button in folder.Buttons)
+                        {
+                            if (button.Type == FolderButtonType.GenericAction &&
+                                button.ActionParameter == deviceId &&
+                                !string.IsNullOrEmpty(button.CustomLabel))
+                            {
+                                labelText = button.CustomLabel;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (labelText == null && device != null)
+                        labelText = device.Name;
+
+                    if (labelText != null)
+                        builder.DrawText(labelText, BitmapColor.White, 16);
+
                     return builder.ToImage();
                 }
 
@@ -784,6 +890,29 @@ namespace ShellyLoupedeckPlugin.Actions
                 DebugLogger.Log($"[CustomFolder4] Set submenu to: {_currentSubmenu}");
 
                 // Force folder refresh by notifying button list changed
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder4] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder4] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
+                return;
+            }
+
+            // Open action submenu directly (from GenericAction buttons)
+            if (cmdParts[0] == "openaction" && cmdParts.Length >= 3)
+            {
+                var actionType = cmdParts[1]; // brightness, dim, color, temperature
+                var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder4] Opening action submenu {actionType} for: {deviceId}");
+                _currentSubmenu = $"{actionType}_{deviceId}";
+                DebugLogger.Log($"[CustomFolder4] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
                 try
                 {
                     DebugLogger.Log($"[CustomFolder4] Calling ButtonActionNamesChanged()");
