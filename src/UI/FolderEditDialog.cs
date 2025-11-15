@@ -17,6 +17,7 @@ namespace ShellyLoupedeckPlugin.UI
         private Button _addDeviceButton;
         private Button _addGroupButton;
         private Button _addActionButton;
+        private Button _renameButton;
         private Button _removeButton;
         private Button _moveUpButton;
         private Button _moveDownButton;
@@ -117,11 +118,21 @@ namespace ShellyLoupedeckPlugin.UI
             Controls.Add(_addActionButton);
 
             // Modify buttons
+            _renameButton = new Button
+            {
+                Text = "Rename",
+                Location = new Point(400, 365),
+                Size = new Size(80, 30),
+                Enabled = false
+            };
+            _renameButton.Click += RenameButton_Click;
+            Controls.Add(_renameButton);
+
             _removeButton = new Button
             {
                 Text = "Remove",
-                Location = new Point(400, 365),
-                Size = new Size(90, 30),
+                Location = new Point(490, 365),
+                Size = new Size(80, 30),
                 Enabled = false
             };
             _removeButton.Click += RemoveButton_Click;
@@ -191,6 +202,7 @@ namespace ShellyLoupedeckPlugin.UI
             bool canMoveUp = hasSelection && _buttonsListBox.SelectedIndex > 0;
             bool canMoveDown = hasSelection && _buttonsListBox.SelectedIndex < _folder.Buttons.Count - 1;
 
+            _renameButton.Enabled = hasSelection;
             _removeButton.Enabled = hasSelection;
             _moveUpButton.Enabled = canMoveUp;
             _moveDownButton.Enabled = canMoveDown;
@@ -332,6 +344,28 @@ namespace ShellyLoupedeckPlugin.UI
 
             _folder.Buttons.RemoveAt(_buttonsListBox.SelectedIndex);
             LoadButtons();
+        }
+
+        private void RenameButton_Click(object sender, EventArgs e)
+        {
+            if (_buttonsListBox.SelectedIndex < 0)
+                return;
+
+            var button = _folder.Buttons[_buttonsListBox.SelectedIndex];
+            var currentLabel = button.CustomLabel ?? "(Unlabeled)";
+
+            // Prompt for new label
+            string newLabel = PromptForInput("Rename Button", "Enter new label for this button:", currentLabel);
+            if (newLabel == null || string.IsNullOrWhiteSpace(newLabel))
+                return; // User cancelled or entered empty label
+
+            // Update the custom label
+            button.CustomLabel = newLabel.Trim();
+
+            // Refresh the list to show the new label
+            int selectedIndex = _buttonsListBox.SelectedIndex;
+            LoadButtons();
+            _buttonsListBox.SelectedIndex = selectedIndex;
         }
 
         private void MoveUpButton_Click(object sender, EventArgs e)

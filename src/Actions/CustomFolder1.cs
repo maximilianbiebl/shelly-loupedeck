@@ -209,6 +209,35 @@ namespace ShellyLoupedeckPlugin.Actions
                     return actions;
                 }
 
+                // Group color menu (groupcolor_groupId)
+                if (submenuType == "groupcolor" && submenuParts.Length == 2)
+                {
+                    var groupId = submenuParts[1];
+                    actions.Add(CreateCommandName($"groupcolorpreset_white_{groupId}"));
+                    actions.Add(CreateCommandName($"groupcolorpreset_warmwhite_{groupId}"));
+                    actions.Add(CreateCommandName($"groupcolorpreset_coldwhite_{groupId}"));
+                    actions.Add(CreateCommandName($"groupcolormenu_r_{groupId}"));
+                    actions.Add(CreateCommandName($"groupcolormenu_g_{groupId}"));
+                    actions.Add(CreateCommandName($"groupcolormenu_b_{groupId}"));
+                    return actions;
+                }
+
+                // Group color RGB adjustment (groupcolor_r_groupId, etc.)
+                if (submenuType == "groupcolor" && submenuParts.Length >= 3 && (submenuParts[1] == "r" || submenuParts[1] == "g" || submenuParts[1] == "b"))
+                {
+                    var colorChannel = submenuParts[1];
+                    var groupId = submenuParts[2];
+
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_-50"));
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_-20"));
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_-5"));
+                    actions.Add(CreateCommandName($"display_groupcolor_{colorChannel}_{groupId}"));
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_+5"));
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_+20"));
+                    actions.Add(CreateCommandName($"adjust_groupcolor_{colorChannel}_{groupId}_+50"));
+                    return actions;
+                }
+
                 // Level 3a: Brightness/Dim/Temperature Adjustment
                 if (submenuParts.Length >= 2)
                 {
@@ -295,7 +324,8 @@ namespace ShellyLoupedeckPlugin.Actions
                         break;
 
                     case FolderButtonType.GroupColor:
-                        commandName = $"groupcolor_{button.TargetId}_{button.Parameter}";
+                        // Open color selection menu for group
+                        commandName = $"opengroupcolor_{button.TargetId}";
                         break;
 
                     case FolderButtonType.GroupBrightness:
@@ -385,6 +415,67 @@ namespace ShellyLoupedeckPlugin.Actions
                     case "temperature": return "Temperature";
                 }
             }
+
+            // Open group color menu
+            if (cmdParts[0] == "opengroupcolor" && cmdParts.Length >= 2)
+            {
+                var groupId = cmdParts[1];
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                return group != null ? $"{group.Name} - Farbe" : "Gruppe Farbe";
+            }
+
+            // Group color presets
+            if (cmdParts[0] == "groupcolorpreset" && cmdParts.Length >= 3)
+            {
+                var preset = cmdParts[1];
+                switch (preset)
+                {
+                    case "white": return "Weiß";
+                    case "warmwhite": return "Warm Weiß";
+                    case "coldwhite": return "Kalt Weiß";
+                }
+            }
+
+            // Group color menu (R, G, B selection)
+            if (cmdParts[0] == "groupcolormenu" && cmdParts.Length >= 3)
+            {
+                var channel = cmdParts[1].ToUpper();
+                return channel;
+            }
+
+            // Adjust group color
+            if (cmdParts[0] == "adjust" && cmdParts.Length >= 3 && cmdParts[1] == "groupcolor")
+            {
+                return cmdParts.Length >= 5 ? cmdParts[4] : "";
+            }
+
+            // Display group color channel value
+            if (cmdParts[0] == "display" && cmdParts.Length >= 4 && cmdParts[1] == "groupcolor")
+            {
+                var channel = cmdParts[2];
+                var groupId = cmdParts[3];
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+
+                if (group != null)
+                {
+                    // Get the first device's color as reference
+                    var firstDevice = _plugin.Devices.FirstOrDefault(d => group.DeviceIds.Contains(d.Id));
+                    if (firstDevice != null)
+                    {
+                        var color = GetDeviceColor(firstDevice);
+                        if (channel == "r")
+                            return color.R.ToString();
+                        else if (channel == "g")
+                            return color.G.ToString();
+                        else if (channel == "b")
+                            return color.B.ToString();
+                    }
+                }
+                return "0";
+            }
+
+
+
 
             // Color presets
             if (cmdParts[0] == "colorpreset" && cmdParts.Length >= 3)
@@ -642,6 +733,122 @@ namespace ShellyLoupedeckPlugin.Actions
                             builder.DrawText("🌡", BitmapColor.White, 32);
                             break;
                     }
+                    return builder.ToImage();
+                }
+
+                // Open group color button
+                if (cmdParts[0] == "opengroupcolor" && cmdParts.Length >= 2)
+                {
+                    var groupId = cmdParts[1];
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    builder.Clear(new BitmapColor(100, 50, 150));
+                    if (group != null)
+                        builder.DrawText(group.Name, BitmapColor.White, 16);
+                    return builder.ToImage();
+                }
+
+                // Group color presets
+                if (cmdParts[0] == "groupcolorpreset" && cmdParts.Length >= 3)
+                {
+                    var preset = cmdParts[1];
+                    switch (preset)
+                    {
+                        case "white":
+                            builder.Clear(new BitmapColor(255, 255, 255));
+                            builder.DrawText("W", BitmapColor.Black, 40);
+                            break;
+                        case "warmwhite":
+                            builder.Clear(new BitmapColor(255, 200, 150));
+                            builder.DrawText("WW", BitmapColor.Black, 32);
+                            break;
+                        case "coldwhite":
+                            builder.Clear(new BitmapColor(200, 220, 255));
+                            builder.DrawText("CW", BitmapColor.Black, 32);
+                            break;
+                    }
+                    return builder.ToImage();
+                }
+
+                // Group color channel selection
+                if (cmdParts[0] == "groupcolormenu" && cmdParts.Length >= 3)
+                {
+                    var channel = cmdParts[1];
+                    switch (channel)
+                    {
+                        case "r":
+                            builder.Clear(new BitmapColor(200, 0, 0));
+                            builder.DrawText("R", BitmapColor.White, 40);
+                            break;
+                        case "g":
+                            builder.Clear(new BitmapColor(0, 200, 0));
+                            builder.DrawText("G", BitmapColor.White, 40);
+                            break;
+                        case "b":
+                            builder.Clear(new BitmapColor(0, 0, 200));
+                            builder.DrawText("B", BitmapColor.White, 40);
+                            break;
+                    }
+                    return builder.ToImage();
+                }
+
+                // Adjust group color buttons
+                if (cmdParts[0] == "adjust" && cmdParts.Length >= 5 && cmdParts[1] == "groupcolor")
+                {
+                    var channel = cmdParts[2];
+                    var adjustment = cmdParts[4];
+                    var isPositive = adjustment.StartsWith("+");
+
+                    BitmapColor bgColor = BitmapColor.Black;
+                    if (channel == "r")
+                        bgColor = isPositive ? new BitmapColor(100, 0, 0) : new BitmapColor(50, 0, 0);
+                    else if (channel == "g")
+                        bgColor = isPositive ? new BitmapColor(0, 100, 0) : new BitmapColor(0, 50, 0);
+                    else if (channel == "b")
+                        bgColor = isPositive ? new BitmapColor(0, 0, 100) : new BitmapColor(0, 0, 50);
+
+                    builder.Clear(bgColor);
+                    builder.DrawText(adjustment, BitmapColor.White, 24);
+                    return builder.ToImage();
+                }
+
+                // Display group color value
+                if (cmdParts[0] == "display" && cmdParts.Length >= 4 && cmdParts[1] == "groupcolor")
+                {
+                    var channel = cmdParts[2];
+                    var groupId = cmdParts[3];
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+
+                    int value = 0;
+                    BitmapColor bgColor = BitmapColor.Black;
+
+                    if (group != null)
+                    {
+                        // Get the first device's color as reference
+                        var firstDevice = _plugin.Devices.FirstOrDefault(d => group.DeviceIds.Contains(d.Id));
+                        if (firstDevice != null)
+                        {
+                            var color = GetDeviceColor(firstDevice);
+
+                            if (channel == "r")
+                            {
+                                value = color.R;
+                                bgColor = new BitmapColor(80, 0, 0);
+                            }
+                            else if (channel == "g")
+                            {
+                                value = color.G;
+                                bgColor = new BitmapColor(0, 80, 0);
+                            }
+                            else if (channel == "b")
+                            {
+                                value = color.B;
+                                bgColor = new BitmapColor(0, 0, 80);
+                            }
+                        }
+                    }
+
+                    builder.Clear(bgColor);
+                    builder.DrawText(value.ToString(), BitmapColor.White, 24);
                     return builder.ToImage();
                 }
 
@@ -959,6 +1166,16 @@ namespace ShellyLoupedeckPlugin.Actions
                     {
                         _currentSubmenu = null;
                     }
+                    // From group color RGB adjustment (groupcolor_r_groupId) -> group color menu (groupcolor_groupId)
+                    else if (parts[0] == "groupcolor" && parts.Length >= 3 && (parts[1] == "r" || parts[1] == "g" || parts[1] == "b"))
+                    {
+                        _currentSubmenu = $"groupcolor_{parts[2]}";
+                    }
+                    // From group color menu (groupcolor_groupId) -> level 1 (main)
+                    else if (parts[0] == "groupcolor" && parts.Length == 2)
+                    {
+                        _currentSubmenu = null;
+                    }
                     // From level 4 (color_r_deviceId or color_g_deviceId or color_b_deviceId) -> level 3b (color_deviceId)
                     else if (parts[0] == "color" && parts.Length >= 3 && (parts[1] == "r" || parts[1] == "g" || parts[1] == "b"))
                     {
@@ -1099,6 +1316,81 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
+            // Open group color menu
+            if (cmdParts[0] == "opengroupcolor" && cmdParts.Length >= 2)
+            {
+                var groupId = cmdParts[1];
+                DebugLogger.Log($"[CustomFolder1] Opening group color menu for: {groupId}");
+                _currentSubmenu = $"groupcolor_{groupId}";
+                DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
+                return;
+            }
+
+            // Apply group color preset
+            if (cmdParts[0] == "groupcolorpreset" && cmdParts.Length >= 3)
+            {
+                var preset = cmdParts[1];
+                var groupId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder1] Applying group color preset {preset} to: {groupId}");
+
+                int r = 0, g = 0, b = 0;
+                switch (preset)
+                {
+                    case "white":
+                        r = 255; g = 255; b = 255;
+                        break;
+                    case "warmwhite":
+                        r = 255; g = 200; b = 150;
+                        break;
+                    case "coldwhite":
+                        r = 200; g = 220; b = 255;
+                        break;
+                }
+
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                if (group != null)
+                {
+                    _ = SetGroupColorAsync(group, (r, g, b, 0));
+                }
+
+                return;
+            }
+
+            // Open group color channel menu
+            if (cmdParts[0] == "groupcolormenu" && cmdParts.Length >= 3)
+            {
+                var channel = cmdParts[1];
+                var groupId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder1] Opening group color {channel} menu for: {groupId}");
+                _currentSubmenu = $"groupcolor_{channel}_{groupId}";
+                DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
+                return;
+            }
+
             // Open color channel menu
             if (cmdParts[0] == "colormenu" && cmdParts.Length >= 3)
             {
@@ -1171,6 +1463,19 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (int.TryParse(adjustment, out int adjustValue))
                 {
                     _ = AdjustDeviceColorChannelAsync(deviceId, channel, adjustValue);
+                }
+                return;
+            }
+
+            // Adjust group color (R/G/B)
+            if (cmdParts[0] == "adjust" && cmdParts[1] == "groupcolor" && cmdParts.Length >= 5)
+            {
+                var channel = cmdParts[2];
+                var groupId = cmdParts[3];
+                var adjustment = cmdParts[4];
+                if (int.TryParse(adjustment, out int adjustValue))
+                {
+                    _ = AdjustGroupColorChannelAsync(groupId, channel, adjustValue);
                 }
                 return;
             }
@@ -1439,15 +1744,27 @@ namespace ShellyLoupedeckPlugin.Actions
         private async System.Threading.Tasks.Task AdjustDeviceBrightnessAsync(string deviceId, int adjustment)
         {
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device == null) return;
+            if (device == null)
+            {
+                DebugLogger.Log($"[CustomFolder1] AdjustDeviceBrightnessAsync: Device {deviceId} not found");
+                return;
+            }
 
             int currentBrightness = GetDeviceBrightness(device);
             int newBrightness = Math.Max(0, Math.Min(100, currentBrightness + adjustment));
 
-            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
+            DebugLogger.Log($"[CustomFolder1] Adjusting brightness for {deviceId}: {currentBrightness} -> {newBrightness}");
 
-            // Update device status
-            await System.Threading.Tasks.Task.Delay(500);
+            bool success = await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
+
+            if (!success)
+            {
+                DebugLogger.Log($"[CustomFolder1] SetLightBrightnessAsync failed for {deviceId}");
+                return;
+            }
+
+            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(1000);
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
@@ -1463,14 +1780,27 @@ namespace ShellyLoupedeckPlugin.Actions
         private async System.Threading.Tasks.Task AdjustDeviceTemperatureAsync(string deviceId, double adjustment)
         {
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device == null) return;
+            if (device == null)
+            {
+                DebugLogger.Log($"[CustomFolder1] AdjustDeviceTemperatureAsync: Device {deviceId} not found");
+                return;
+            }
 
             double currentTemp = GetDeviceTemperature(device);
             double newTemp = Math.Max(5.0, Math.Min(35.0, currentTemp + adjustment));
 
-            await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemp);
+            DebugLogger.Log($"[CustomFolder1] Adjusting temperature for {deviceId}: {currentTemp} -> {newTemp}");
 
-            await System.Threading.Tasks.Task.Delay(500);
+            bool success = await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemp);
+
+            if (!success)
+            {
+                DebugLogger.Log($"[CustomFolder1] SetThermostatTemperatureAsync failed for {deviceId}");
+                return;
+            }
+
+            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(1000);
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
@@ -1480,7 +1810,11 @@ namespace ShellyLoupedeckPlugin.Actions
         private async System.Threading.Tasks.Task AdjustDeviceColorChannelAsync(string deviceId, string channel, int adjustment)
         {
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device == null) return;
+            if (device == null)
+            {
+                DebugLogger.Log($"[CustomFolder1] AdjustDeviceColorChannelAsync: Device {deviceId} not found");
+                return;
+            }
 
             var currentColor = GetDeviceColor(device);
             int r = currentColor.R;
@@ -1500,12 +1834,21 @@ namespace ShellyLoupedeckPlugin.Actions
                     break;
             }
 
+            DebugLogger.Log($"[CustomFolder1] Adjusting color {channel} for {deviceId}: RGB({r},{g},{b})");
+
             int brightness = GetDeviceBrightness(device);
             if (brightness == 0) brightness = 100;
 
-            await _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, brightness: brightness);
+            bool success = await _plugin.ApiClient.SetLightColorAsync(deviceId, r, g, b, 0, brightness: brightness);
 
-            await System.Threading.Tasks.Task.Delay(500);
+            if (!success)
+            {
+                DebugLogger.Log($"[CustomFolder1] SetLightColorAsync failed for {deviceId}");
+                return;
+            }
+
+            // Wait longer for device to update (increased from 500ms to 1000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(1000);
             await RefreshDeviceStatus(deviceId);
 
             // Immediate UI refresh
@@ -1525,6 +1868,59 @@ namespace ShellyLoupedeckPlugin.Actions
                     OnDevicesUpdated(this, EventArgs.Empty);
                 }
             }
+        }
+
+        private async System.Threading.Tasks.Task AdjustGroupColorChannelAsync(string groupId, string channel, int adjustment)
+        {
+            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null)
+            {
+                DebugLogger.Log($"[CustomFolder1] AdjustGroupColorChannelAsync: Group {groupId} not found");
+                return;
+            }
+
+            // Get the first device's color as reference (assuming all devices in group have same color)
+            var firstDevice = _plugin.Devices.FirstOrDefault(d => group.DeviceIds.Contains(d.Id));
+            if (firstDevice == null)
+            {
+                DebugLogger.Log($"[CustomFolder1] AdjustGroupColorChannelAsync: No devices found in group {groupId}");
+                return;
+            }
+
+            var currentColor = GetDeviceColor(firstDevice);
+            int r = currentColor.R;
+            int g = currentColor.G;
+            int b = currentColor.B;
+
+            switch (channel)
+            {
+                case "r":
+                    r = Math.Max(0, Math.Min(255, r + adjustment));
+                    break;
+                case "g":
+                    g = Math.Max(0, Math.Min(255, g + adjustment));
+                    break;
+                case "b":
+                    b = Math.Max(0, Math.Min(255, b + adjustment));
+                    break;
+            }
+
+            DebugLogger.Log($"[CustomFolder1] Adjusting group color {channel} for group {groupId}: RGB({r},{g},{b})");
+
+            // Apply the new color to all devices in the group
+            await SetGroupColorAsync(group, (r, g, b, 0));
+
+            // Wait longer for devices to update (increased from 500ms to 1000ms for better reliability)
+            await System.Threading.Tasks.Task.Delay(1000);
+
+            // Refresh all devices in the group
+            foreach (var deviceId in group.DeviceIds)
+            {
+                await RefreshDeviceStatus(deviceId);
+            }
+
+            // Immediate UI refresh
+            ButtonActionNamesChanged();
         }
     }
 }
