@@ -14,16 +14,20 @@ namespace ShellyLoupedeckPlugin.Commands
 
         public FolderBuilderCommand()
         {
+            DebugLogger.Log("=== FolderBuilderCommand constructor called ===");
             DisplayName = "Folder Builder";
             Description = "Create and customize control folders";
             GroupName = "Configuration";
+            DebugLogger.Log($"FolderBuilderCommand: DisplayName={DisplayName}, GroupName={GroupName}");
         }
 
         protected override bool OnLoad()
         {
+            DebugLogger.Log("=== FolderBuilderCommand OnLoad called ===");
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.FoldersUpdated += OnFoldersUpdated;
             CreateParameters();
+            DebugLogger.Log($"FolderBuilderCommand: Loaded with {_plugin.Folders.Count} folders");
             return base.OnLoad();
         }
 
