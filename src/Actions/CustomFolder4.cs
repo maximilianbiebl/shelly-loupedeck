@@ -11,6 +11,9 @@ namespace ShellyLoupedeckPlugin.Actions
         private const int SLOT_INDEX = 3;
         private ShellyLoupedeckPlugin _plugin;
 
+        // Submenu state: null = main menu, otherwise format: "type_deviceId" (e.g., "brightness_abc123")
+        private string _currentSubmenu = null;
+
         private Dictionary<string, (int R, int G, int B, int W)> _colorPresets = new Dictionary<string, (int, int, int, int)>
         {
             { "red", (255, 0, 0, 0) },
@@ -25,7 +28,7 @@ namespace ShellyLoupedeckPlugin.Actions
         public CustomFolder4()
         {
             DisplayName = "Custom Folder 4";
-            Description = "Configurable folder slot 4";
+            Description = "Configurable folder slot 1";
         }
 
         public override bool Load()
@@ -60,7 +63,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder != null)
                 DisplayName = folder.Name;
             else
-                DisplayName = "Custom Folder 4 (Empty)";
+                DisplayName = "Custom Folder 1 (Empty)";
         }
 
         private FolderConfiguration GetAssignedFolder()
@@ -74,6 +77,61 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
+            // If we're in a submenu, show submenu buttons instead of main folder buttons
+            if (!string.IsNullOrEmpty(_currentSubmenu))
+            {
+                var submenuParts = _currentSubmenu.Split('_');
+                if (submenuParts.Length >= 2)
+                {
+                    var submenuType = submenuParts[0];
+                    var deviceId = submenuParts[1];
+
+                    switch (submenuType)
+                    {
+                        case "brightness":
+                        case "dimmer":
+                            // Minus buttons (left side)
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-10"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-5"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_-1"));
+                            // Current value display (center)
+                            actions.Add(CreateCommandName($"display_brightness_{deviceId}"));
+                            // Plus buttons (right side)
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+1"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+5"));
+                            actions.Add(CreateCommandName($"adjust_brightness_{deviceId}_+10"));
+                            break;
+
+                        case "color":
+                            // Color presets
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_red"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_green"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_blue"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_yellow"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_cyan"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_magenta"));
+                            actions.Add(CreateCommandName($"preset_color_{deviceId}_white"));
+                            break;
+
+                        case "temperature":
+                            // Minus buttons (left side)
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-2"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-1"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_-0.5"));
+                            // Current value display (center)
+                            actions.Add(CreateCommandName($"display_temperature_{deviceId}"));
+                            // Plus buttons (right side)
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+0.5"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+1"));
+                            actions.Add(CreateCommandName($"adjust_temperature_{deviceId}_+2"));
+                            break;
+                    }
+                }
+
+                return actions;
+            }
+
+            // Normal main menu
             var folder = GetAssignedFolder();
             if (folder == null)
                 return actions;
@@ -105,7 +163,23 @@ namespace ShellyLoupedeckPlugin.Actions
                         break;
 
                     case FolderButtonType.GenericAction:
-                        commandName = $"generic_{button.ActionName}_{button.ActionParameter}";
+                        // Check if this is an adjustment action that should open a submenu
+                        if (button.ActionName == "BrightnessAdjustment" || button.ActionName == "DimmerAdjustment")
+                        {
+                            commandName = $"submenu_brightness_{button.ActionParameter}";
+                        }
+                        else if (button.ActionName == "ColorAdjustment")
+                        {
+                            commandName = $"submenu_color_{button.ActionParameter}";
+                        }
+                        else if (button.ActionName == "TemperatureAdjustment")
+                        {
+                            commandName = $"submenu_temperature_{button.ActionParameter}";
+                        }
+                        else
+                        {
+                            commandName = $"generic_{button.ActionName}_{button.ActionParameter}";
+                        }
                         break;
                 }
 
@@ -123,6 +197,58 @@ namespace ShellyLoupedeckPlugin.Actions
 
             // actionParameter is already the command name (e.g. "groupcolor_id_red")
             var cmdParts = actionParameter.Split('_');
+
+            // Handle submenu commands
+            if (cmdParts[0] == "submenu")
+            {
+                var deviceId = cmdParts.Length >= 3 ? cmdParts[2] : null;
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                return device?.Name ?? "Adjust";
+            }
+
+            // Handle display commands - show current value
+            if (cmdParts[0] == "display")
+            {
+                if (cmdParts.Length >= 3)
+                {
+                    var deviceId = cmdParts[2];
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                    if (device != null)
+                    {
+                        if (cmdParts[1] == "brightness")
+                        {
+                            int currentBrightness = GetDeviceBrightness(device);
+                            return $"{currentBrightness}%";
+                        }
+                        if (cmdParts[1] == "temperature")
+                        {
+                            double currentTemp = GetDeviceTemperature(device);
+                            return $"{currentTemp:F1}°C";
+                        }
+                    }
+                }
+                return "---";
+            }
+
+            // Handle preset commands
+            if (cmdParts[0] == "preset")
+            {
+                if (cmdParts[1] == "color" && cmdParts.Length >= 4)
+                    return cmdParts[3].ToUpper();
+            }
+
+            // Handle adjust commands
+            if (cmdParts[0] == "adjust")
+            {
+                if (cmdParts.Length >= 4)
+                {
+                    var adjustment = cmdParts[3];
+                    if (cmdParts[1] == "brightness")
+                        return $"{adjustment}%";
+                    if (cmdParts[1] == "temperature")
+                        return $"{adjustment}°C";
+                }
+            }
 
             // Find button configuration for custom labels
             var folder = GetAssignedFolder();
@@ -192,7 +318,8 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                         else if (actionName.Contains("Adjustment"))
                         {
-                            return "N/A"; // Adjustments can't work in folders
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return device?.Name ?? "Adjust";
                         }
                     }
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
@@ -218,6 +345,78 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
+                    return builder.ToImage();
+                }
+
+                // Handle submenu button - show arrow to indicate it opens a submenu
+                if (cmdParts[0] == "submenu")
+                {
+                    builder.Clear(new BitmapColor(50, 50, 100));
+                    builder.DrawText("→", BitmapColor.White, 40);
+                    return builder.ToImage();
+                }
+
+                // Handle display brightness - show current value
+                if (cmdParts[0] == "display" && cmdParts[1] == "brightness" && cmdParts.Length >= 3)
+                {
+                    var deviceId = cmdParts[2];
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                    if (device != null)
+                    {
+                        int currentBrightness = GetDeviceBrightness(device);
+                        var grayValue = (byte)(currentBrightness * 2.55);
+                        builder.Clear(new BitmapColor(grayValue, grayValue, grayValue));
+                        builder.DrawText($"{currentBrightness}%", currentBrightness > 50 ? BitmapColor.Black : BitmapColor.White, 26);
+                    }
+                    return builder.ToImage();
+                }
+
+                // Handle display temperature - show current value
+                if (cmdParts[0] == "display" && cmdParts[1] == "temperature" && cmdParts.Length >= 3)
+                {
+                    var deviceId = cmdParts[2];
+                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                    if (device != null)
+                    {
+                        double currentTemp = GetDeviceTemperature(device);
+                        builder.Clear(new BitmapColor(100, 60, 0));
+                        builder.DrawText($"{currentTemp:F1}°C", BitmapColor.White, 22);
+                    }
+                    return builder.ToImage();
+                }
+
+                // Handle preset color buttons
+                if (cmdParts[0] == "preset" && cmdParts[1] == "color" && cmdParts.Length >= 4)
+                {
+                    var colorKey = cmdParts[3];
+                    if (_colorPresets.ContainsKey(colorKey))
+                    {
+                        var color = _colorPresets[colorKey];
+                        builder.Clear(new BitmapColor((byte)color.R, (byte)color.G, (byte)color.B));
+                        var brightness = (color.R + color.G + color.B) / 3;
+                        var textColor = brightness > 128 ? BitmapColor.Black : BitmapColor.White;
+                        builder.DrawText(colorKey.ToUpper(), textColor, 14);
+                    }
+                    return builder.ToImage();
+                }
+
+                // Handle adjust brightness buttons
+                if (cmdParts[0] == "adjust" && cmdParts[1] == "brightness" && cmdParts.Length >= 4)
+                {
+                    var adjustment = cmdParts[3];
+                    var isPositive = adjustment.StartsWith("+");
+                    builder.Clear(isPositive ? new BitmapColor(0, 100, 0) : new BitmapColor(100, 0, 0));
+                    builder.DrawText($"{adjustment}%", BitmapColor.White, 24);
+                    return builder.ToImage();
+                }
+
+                // Handle adjust temperature buttons
+                if (cmdParts[0] == "adjust" && cmdParts[1] == "temperature" && cmdParts.Length >= 4)
+                {
+                    var adjustment = cmdParts[3];
+                    var isPositive = adjustment.StartsWith("+");
+                    builder.Clear(isPositive ? new BitmapColor(150, 80, 0) : new BitmapColor(0, 80, 150));
+                    builder.DrawText($"{adjustment}°C", BitmapColor.White, 22);
                     return builder.ToImage();
                 }
 
@@ -351,13 +550,71 @@ namespace ShellyLoupedeckPlugin.Actions
         public override void RunCommand(string actionParameter)
         {
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
+            {
+                // Back button: close submenu if in submenu, otherwise do nothing
+                if (!string.IsNullOrEmpty(_currentSubmenu))
+                {
+                    _currentSubmenu = null;
+                    // Trigger folder refresh to show main menu again
+                    OnDevicesUpdated(this, EventArgs.Empty);
+                }
                 return;
+            }
 
             // actionParameter is already the command name (e.g. "groupcolor_id_red")
             var cmdParts = actionParameter.Split('_');
             if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();
+
+            // Handle submenu opening
+            if (cmdParts[0] == "submenu" && cmdParts.Length >= 3)
+            {
+                _currentSubmenu = $"{cmdParts[1]}_{cmdParts[2]}";
+                // Trigger folder refresh to show submenu buttons
+                OnDevicesUpdated(this, EventArgs.Empty);
+                return;
+            }
+
+            // Handle display buttons (do nothing, they're just for display)
+            if (cmdParts[0] == "display")
+                return;
+
+            // Handle adjust brightness
+            if (cmdParts[0] == "adjust" && cmdParts[1] == "brightness" && cmdParts.Length >= 4)
+            {
+                var deviceId = cmdParts[2];
+                var adjustment = cmdParts[3];
+                if (double.TryParse(adjustment, out double adjustValue))
+                {
+                    _ = AdjustDeviceBrightnessAsync(deviceId, (int)adjustValue);
+                }
+                return;
+            }
+
+            // Handle adjust temperature
+            if (cmdParts[0] == "adjust" && cmdParts[1] == "temperature" && cmdParts.Length >= 4)
+            {
+                var deviceId = cmdParts[2];
+                var adjustment = cmdParts[3];
+                if (double.TryParse(adjustment, out double adjustValue))
+                {
+                    _ = AdjustDeviceTemperatureAsync(deviceId, adjustValue);
+                }
+                return;
+            }
+
+            // Handle preset color
+            if (cmdParts[0] == "preset" && cmdParts[1] == "color" && cmdParts.Length >= 4)
+            {
+                var deviceId = cmdParts[2];
+                var colorKey = cmdParts[3];
+                if (_colorPresets.ContainsKey(colorKey))
+                {
+                    _ = SetDeviceColorAsync(deviceId, _colorPresets[colorKey]);
+                }
+                return;
+            }
 
             switch (cmdParts[0])
             {
@@ -570,6 +827,87 @@ namespace ShellyLoupedeckPlugin.Actions
                 return device.Lights[channel].IsOn;
 
             return false;
+        }
+
+        private int GetDeviceBrightness(ShellyDevice device, int channel = 0)
+        {
+            if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
+                return device.Status.Lights[channel].Brightness;
+            if (device.Lights != null && device.Lights.Count > channel)
+                return device.Lights[channel].Brightness;
+            return 0;
+        }
+
+        private double GetDeviceTemperature(ShellyDevice device)
+        {
+            if (device.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
+                return device.Status.Thermostats[0].TargetTemperature;
+            if (device.Thermostats != null && device.Thermostats.Count > 0)
+                return device.Thermostats[0].TargetTemperature;
+            return 20.0; // Default value
+        }
+
+        private async System.Threading.Tasks.Task AdjustDeviceBrightnessAsync(string deviceId, int adjustment)
+        {
+            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+            if (device == null) return;
+
+            int currentBrightness = GetDeviceBrightness(device);
+            int newBrightness = Math.Max(0, Math.Min(100, currentBrightness + adjustment));
+
+            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, newBrightness);
+
+            // Update device status after a short delay
+            await System.Threading.Tasks.Task.Delay(500);
+            var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
+            if (updatedDevice != null)
+            {
+                var index = _plugin.Devices.FindIndex(d => d.Id == deviceId);
+                if (index >= 0)
+                    _plugin.Devices[index] = updatedDevice;
+            }
+        }
+
+        private async System.Threading.Tasks.Task AdjustDeviceTemperatureAsync(string deviceId, double adjustment)
+        {
+            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+            if (device == null) return;
+
+            double currentTemp = GetDeviceTemperature(device);
+            double newTemp = Math.Max(5.0, Math.Min(35.0, currentTemp + adjustment));
+
+            await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, newTemp);
+
+            // Update device status after a short delay
+            await System.Threading.Tasks.Task.Delay(500);
+            var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
+            if (updatedDevice != null)
+            {
+                var index = _plugin.Devices.FindIndex(d => d.Id == deviceId);
+                if (index >= 0)
+                    _plugin.Devices[index] = updatedDevice;
+            }
+        }
+
+        private async System.Threading.Tasks.Task SetDeviceColorAsync(string deviceId, (int R, int G, int B, int W) color)
+        {
+            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+            if (device == null) return;
+
+            int brightness = GetDeviceBrightness(device);
+            if (brightness == 0) brightness = 100; // If off, set to 100% when setting color
+
+            await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, brightness: brightness);
+
+            // Update device status after a short delay
+            await System.Threading.Tasks.Task.Delay(500);
+            var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
+            if (updatedDevice != null)
+            {
+                var index = _plugin.Devices.FindIndex(d => d.Id == deviceId);
+                if (index >= 0)
+                    _plugin.Devices[index] = updatedDevice;
+            }
         }
     }
 }
