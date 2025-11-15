@@ -6,6 +6,10 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
+    /// <summary>
+    /// Dynamic folder that provides group-specific controls.
+    /// Creates a touchfield folder for each group with buttons based on the group's purpose.
+    /// </summary>
     public class GroupControlFolder : PluginDynamicFolder
     {
         private ShellyLoupedeckPlugin _plugin;
@@ -19,25 +23,20 @@ namespace ShellyLoupedeckPlugin.Actions
             { "white", (0, 0, 0, 255) },
             { "yellow", (255, 255, 0, 0) },
             { "cyan", (0, 255, 255, 0) },
-            { "magenta", (255, 0, 255, 0) },
-            { "orange", (255, 128, 0, 0) },
-            { "purple", (128, 0, 255, 0) }
+            { "magenta", (255, 0, 255, 0) }
         };
 
         // Brightness presets for Brightness groups
-        private int[] _brightnessPresets = { 10, 25, 50, 75, 100 };
-
-        // Temperature presets for Thermostat groups (in °C)
-        private double[] _temperaturePresets = { 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0 };
+        private int[] _brightnessPresets = { 25, 50, 75, 100 };
 
         public GroupControlFolder()
         {
             DisplayName = "Group Controls";
-            Description = "Open folders with group-specific controls";
+            Description = "Touchfield folders for group controls";
             GroupName = "Group Actions";
         }
 
-        protected override bool Load()
+        public override bool Load()
         {
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
@@ -48,7 +47,7 @@ namespace ShellyLoupedeckPlugin.Actions
             return true;
         }
 
-        protected override bool Unload()
+        public override bool Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
@@ -77,82 +76,23 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        public override IEnumerable<string> GetButtonPressActionNames(string actionParameter)
+        /// <summary>
+        /// Returns all button actions for this folder.
+        /// Since we have multiple groups with different purposes, we return a comprehensive set of buttons
+        /// that covers all possible actions. The actual visibility/behavior is controlled by the command execution.
+        /// </summary>
+        public override IEnumerable<string> GetButtonPressActionNames()
         {
             var actions = new List<string>();
 
-            // Add navigation back button
+            // Navigation button
             actions.Add(PluginDynamicFolder.NavigateUpActionName);
 
-            if (string.IsNullOrEmpty(actionParameter) || !actionParameter.StartsWith("group_"))
+            // Add generic action slots that will be dynamically populated based on the active group
+            // We create enough slots for the largest possible group (switches with multiple devices)
+            for (int i = 0; i < 15; i++)
             {
-                return actions;
-            }
-
-            var groupId = actionParameter.Substring(6);
-            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-
-            if (group == null)
-            {
-                return actions;
-            }
-
-            // Add buttons based on group purpose
-            switch (group.Purpose)
-            {
-                case GroupPurpose.Switch:
-                    // Add a toggle button for each device in the group
-                    foreach (var deviceId in group.DeviceIds)
-                    {
-                        var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                        if (device != null)
-                        {
-                            var deviceType = device.GetDeviceType();
-                            int channelCount = 1;
-
-                            // Determine channel count
-                            if (deviceType == ShellyDeviceType.ShellyPlus2PM)
-                            {
-                                channelCount = device.Status?.Relays?.Count ?? 1;
-                            }
-                            else if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
-                            {
-                                channelCount = device.Status?.Lights?.Count ?? 1;
-                            }
-
-                            // Add button for each channel
-                            for (int channel = 0; channel < channelCount; channel++)
-                            {
-                                var channelSuffix = channelCount > 1 ? $"_ch{channel}" : "";
-                                actions.Add(CreateCommandName($"toggle_{deviceId}{channelSuffix}"));
-                            }
-                        }
-                    }
-                    break;
-
-                case GroupPurpose.Color:
-                    // Add color preset buttons
-                    foreach (var colorKey in _colorPresets.Keys)
-                    {
-                        actions.Add(CreateCommandName($"color_{colorKey}"));
-                    }
-                    break;
-
-                case GroupPurpose.Brightness:
-                    // Add brightness preset buttons
-                    foreach (var brightness in _brightnessPresets)
-                    {
-                        actions.Add(CreateCommandName($"brightness_{brightness}"));
-                    }
-                    break;
-
-                case GroupPurpose.Thermostat:
-                    // Add temperature preset buttons
-                    foreach (var temp in _temperaturePresets)
-                    {
-                        actions.Add(CreateCommandName($"temp_{temp:F1}"));
-                    }
-                    break;
+                actions.Add(CreateCommandName($"action_{i}"));
             }
 
             return actions;
@@ -165,52 +105,17 @@ namespace ShellyLoupedeckPlugin.Actions
                 return "Back";
             }
 
-            // Parse command parameter
+            // Parse action parameter to get group and command info
             var parts = actionParameter.Split(new[] { this.GetType().FullName }, StringSplitOptions.None);
             if (parts.Length < 2)
             {
-                return actionParameter;
+                return "Action";
             }
 
+            var groupParam = parts[0];
             var commandId = parts[1];
 
-            if (commandId.StartsWith("toggle_"))
-            {
-                var deviceParam = commandId.Substring(7);
-                var deviceId = deviceParam;
-                var channelSuffix = "";
-
-                if (deviceParam.Contains("_ch"))
-                {
-                    var idx = deviceParam.IndexOf("_ch");
-                    deviceId = deviceParam.Substring(0, idx);
-                    channelSuffix = deviceParam.Substring(idx);
-                }
-
-                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                if (device != null)
-                {
-                    return device.Name + channelSuffix.Replace("_", " ").ToUpper();
-                }
-                return deviceId;
-            }
-            else if (commandId.StartsWith("color_"))
-            {
-                var colorKey = commandId.Substring(6);
-                return colorKey.Replace("_", " ").ToUpper();
-            }
-            else if (commandId.StartsWith("brightness_"))
-            {
-                var brightness = commandId.Substring(11);
-                return $"{brightness}%";
-            }
-            else if (commandId.StartsWith("temp_"))
-            {
-                var temp = commandId.Substring(5);
-                return $"{temp}°C";
-            }
-
-            return commandId;
+            return commandId.Replace("_", " ");
         }
 
         public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
@@ -225,8 +130,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                // Parse command parameter - format is: {folderParam}{separator}{commandId}
-                // Split by the type name to extract commandId
+                // Parse action parameter
                 var parts = actionParameter.Split(new[] { this.GetType().FullName }, StringSplitOptions.None);
                 if (parts.Length < 2)
                 {
@@ -234,116 +138,217 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
+                var groupParam = parts[0];
                 var commandId = parts[1];
 
-                if (commandId.StartsWith("toggle_"))
+                // Extract group ID
+                if (!groupParam.StartsWith("group_"))
                 {
-                    // Get device state and show ON/OFF
-                    var deviceParam = commandId.Substring(7);
-                    var deviceId = deviceParam;
-                    int channel = 0;
-
-                    if (deviceParam.Contains("_ch"))
-                    {
-                        var idx = deviceParam.IndexOf("_ch");
-                        deviceId = deviceParam.Substring(0, idx);
-                        int.TryParse(deviceParam.Substring(idx + 3), out channel);
-                    }
-
-                    var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (device != null)
-                    {
-                        bool isOn = false;
-                        var deviceType = device.GetDeviceType();
-
-                        if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
-                        {
-                            if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
-                            {
-                                isOn = device.Status.Lights[channel].IsOn;
-                            }
-                        }
-                        else
-                        {
-                            if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
-                            {
-                                isOn = device.Status.Relays[channel].IsOn;
-                            }
-                        }
-
-                        var color = isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(100, 100, 100);
-                        builder.Clear(color);
-
-                        var deviceName = device.Name;
-                        if (deviceParam.Contains("_ch"))
-                        {
-                            deviceName += deviceParam.Substring(deviceParam.IndexOf("_ch")).Replace("_", " ").ToUpper();
-                        }
-
-                        builder.DrawText(deviceName, BitmapColor.White, 12);
-                        builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 24);
-                    }
-                }
-                else if (commandId.StartsWith("color_"))
-                {
-                    var colorKey = commandId.Substring(6);
-                    if (_colorPresets.ContainsKey(colorKey))
-                    {
-                        var color = _colorPresets[colorKey];
-                        var bitmapColor = new BitmapColor((byte)color.R, (byte)color.G, (byte)color.B);
-                        builder.Clear(bitmapColor);
-
-                        var brightness = (color.R + color.G + color.B) / 3;
-                        var textColor = brightness > 128 ? BitmapColor.Black : BitmapColor.White;
-                        builder.DrawText(colorKey.Replace("_", " ").ToUpper(), textColor, 14);
-                    }
-                }
-                else if (commandId.StartsWith("brightness_"))
-                {
-                    var brightnessStr = commandId.Substring(11);
-                    if (int.TryParse(brightnessStr, out int brightness))
-                    {
-                        var grayValue = (byte)(brightness * 2.55);
-                        builder.Clear(new BitmapColor(grayValue, grayValue, grayValue));
-
-                        var textColor = brightness > 50 ? BitmapColor.Black : BitmapColor.White;
-                        builder.DrawText($"{brightness}%", textColor, 24);
-                    }
-                }
-                else if (commandId.StartsWith("temp_"))
-                {
-                    var tempStr = commandId.Substring(5);
-                    builder.Clear(BitmapColor.Black);
-                    builder.DrawText($"{tempStr}°C", BitmapColor.White, 24);
+                    builder.DrawText("ERR", BitmapColor.White);
+                    return builder.ToImage();
                 }
 
+                var groupId = groupParam.Substring(6);
+                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+
+                if (group == null)
+                {
+                    builder.DrawText("N/A", BitmapColor.White);
+                    return builder.ToImage();
+                }
+
+                // Parse command index
+                if (commandId.StartsWith("action_"))
+                {
+                    var indexStr = commandId.Substring(7);
+                    if (int.TryParse(indexStr, out int actionIndex))
+                    {
+                        return RenderActionButton(builder, group, actionIndex, imageSize);
+                    }
+                }
+
+                builder.DrawText(commandId, BitmapColor.White, 10);
                 return builder.ToImage();
             }
+        }
+
+        private BitmapImage RenderActionButton(BitmapBuilder builder, DeviceGroup group, int actionIndex, PluginImageSize imageSize)
+        {
+            switch (group.Purpose)
+            {
+                case GroupPurpose.Switch:
+                    return RenderSwitchAction(builder, group, actionIndex);
+
+                case GroupPurpose.Color:
+                    return RenderColorAction(builder, group, actionIndex);
+
+                case GroupPurpose.Brightness:
+                    return RenderBrightnessAction(builder, group, actionIndex);
+
+                case GroupPurpose.Thermostat:
+                    return RenderThermostatAction(builder, group, actionIndex);
+
+                default:
+                    builder.Clear(BitmapColor.Black);
+                    builder.DrawText("N/A", BitmapColor.White);
+                    return builder.ToImage();
+            }
+        }
+
+        private BitmapImage RenderSwitchAction(BitmapBuilder builder, DeviceGroup group, int actionIndex)
+        {
+            // Count total channels across all devices
+            var deviceChannels = new List<(string DeviceId, int Channel, string DeviceName)>();
+
+            foreach (var deviceId in group.DeviceIds)
+            {
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device != null)
+                {
+                    var deviceType = device.GetDeviceType();
+                    int channelCount = 1;
+
+                    if (deviceType == ShellyDeviceType.ShellyPlus2PM)
+                    {
+                        channelCount = device.Status?.Relays?.Count ?? 1;
+                    }
+                    else if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+                    {
+                        channelCount = device.Status?.Lights?.Count ?? 1;
+                    }
+
+                    for (int ch = 0; ch < channelCount; ch++)
+                    {
+                        var suffix = channelCount > 1 ? $" CH{ch}" : "";
+                        deviceChannels.Add((deviceId, ch, device.Name + suffix));
+                    }
+                }
+            }
+
+            if (actionIndex >= deviceChannels.Count)
+            {
+                builder.Clear(new BitmapColor(20, 20, 20));
+                return builder.ToImage();
+            }
+
+            var (devId, channel, devName) = deviceChannels[actionIndex];
+            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == devId);
+
+            if (dev != null)
+            {
+                bool isOn = false;
+                var devType = dev.GetDeviceType();
+
+                if (devType == ShellyDeviceType.RGBW || devType == ShellyDeviceType.Dimmer)
+                {
+                    if (dev.Status?.Lights != null && dev.Status.Lights.Count > channel)
+                    {
+                        isOn = dev.Status.Lights[channel].IsOn;
+                    }
+                }
+                else
+                {
+                    if (dev.Status?.Relays != null && dev.Status.Relays.Count > channel)
+                    {
+                        isOn = dev.Status.Relays[channel].IsOn;
+                    }
+                }
+
+                var color = isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(100, 100, 100);
+                builder.Clear(color);
+                builder.DrawText(devName, BitmapColor.White, 11);
+                builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 20);
+            }
+            else
+            {
+                builder.Clear(BitmapColor.Black);
+                builder.DrawText("ERR", BitmapColor.White);
+            }
+
+            return builder.ToImage();
+        }
+
+        private BitmapImage RenderColorAction(BitmapBuilder builder, DeviceGroup group, int actionIndex)
+        {
+            var colorKeys = _colorPresets.Keys.ToList();
+
+            if (actionIndex >= colorKeys.Count)
+            {
+                builder.Clear(new BitmapColor(20, 20, 20));
+                return builder.ToImage();
+            }
+
+            var colorKey = colorKeys[actionIndex];
+            var color = _colorPresets[colorKey];
+
+            var bitmapColor = new BitmapColor((byte)color.R, (byte)color.G, (byte)color.B);
+            builder.Clear(bitmapColor);
+
+            var brightness = (color.R + color.G + color.B) / 3;
+            var textColor = brightness > 128 ? BitmapColor.Black : BitmapColor.White;
+            builder.DrawText(colorKey.ToUpper(), textColor, 16);
+
+            return builder.ToImage();
+        }
+
+        private BitmapImage RenderBrightnessAction(BitmapBuilder builder, DeviceGroup group, int actionIndex)
+        {
+            if (actionIndex >= _brightnessPresets.Length)
+            {
+                builder.Clear(new BitmapColor(20, 20, 20));
+                return builder.ToImage();
+            }
+
+            var brightness = _brightnessPresets[actionIndex];
+            var grayValue = (byte)(brightness * 2.55);
+            builder.Clear(new BitmapColor(grayValue, grayValue, grayValue));
+
+            var textColor = brightness > 50 ? BitmapColor.Black : BitmapColor.White;
+            builder.DrawText($"{brightness}%", textColor, 24);
+
+            return builder.ToImage();
+        }
+
+        private BitmapImage RenderThermostatAction(BitmapBuilder builder, DeviceGroup group, int actionIndex)
+        {
+            var temperatures = new double[] { 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0 };
+
+            if (actionIndex >= temperatures.Length)
+            {
+                builder.Clear(new BitmapColor(20, 20, 20));
+                return builder.ToImage();
+            }
+
+            var temp = temperatures[actionIndex];
+            builder.Clear(BitmapColor.Black);
+            builder.DrawText($"{temp:F1}°C", BitmapColor.White, 22);
+
+            return builder.ToImage();
         }
 
         public override void RunCommand(string actionParameter)
         {
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
             {
-                return; // Navigation is handled by Loupedeck
+                return; // Handled by Loupedeck
             }
 
-            // Parse folder parameter and command
+            // Parse action parameter
             var parts = actionParameter.Split(new[] { this.GetType().FullName }, StringSplitOptions.None);
             if (parts.Length < 2)
             {
                 return;
             }
 
-            var folderParam = parts[0];
+            var groupParam = parts[0];
             var commandId = parts[1];
 
-            if (!folderParam.StartsWith("group_"))
+            if (!groupParam.StartsWith("group_"))
             {
                 return;
             }
 
-            var groupId = folderParam.Substring(6);
+            var groupId = groupParam.Substring(6);
             var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
 
             if (group == null)
@@ -351,105 +356,127 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            // Record user action to prevent refresh conflicts
-            _plugin.RecordUserAction();
-
-            // Execute command based on type
-            if (commandId.StartsWith("toggle_"))
-            {
-                var deviceParam = commandId.Substring(7);
-                var deviceId = deviceParam;
-                int channel = 0;
-
-                if (deviceParam.Contains("_ch"))
-                {
-                    var idx = deviceParam.IndexOf("_ch");
-                    deviceId = deviceParam.Substring(0, idx);
-                    int.TryParse(deviceParam.Substring(idx + 3), out channel);
-                }
-
-                _ = ToggleDeviceAsync(deviceId, channel);
-            }
-            else if (commandId.StartsWith("color_"))
-            {
-                var colorKey = commandId.Substring(6);
-                if (_colorPresets.ContainsKey(colorKey))
-                {
-                    var color = _colorPresets[colorKey];
-                    _ = SetGroupColorAsync(group, color);
-                }
-            }
-            else if (commandId.StartsWith("brightness_"))
-            {
-                var brightnessStr = commandId.Substring(11);
-                if (int.TryParse(brightnessStr, out int brightness))
-                {
-                    _ = SetGroupBrightnessAsync(group, brightness);
-                }
-            }
-            else if (commandId.StartsWith("temp_"))
-            {
-                var tempStr = commandId.Substring(5);
-                if (double.TryParse(tempStr, out double temperature))
-                {
-                    _ = SetGroupTemperatureAsync(group, temperature);
-                }
-            }
-        }
-
-        private async System.Threading.Tasks.Task ToggleDeviceAsync(string deviceId, int channel)
-        {
-            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-            if (device == null)
+            // Parse command index
+            if (!commandId.StartsWith("action_"))
             {
                 return;
             }
 
-            // Get current state
-            bool currentState = false;
-            var deviceType = device.GetDeviceType();
-
-            if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+            var indexStr = commandId.Substring(7);
+            if (!int.TryParse(indexStr, out int actionIndex))
             {
-                if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
-                {
-                    currentState = device.Status.Lights[channel].IsOn;
-                }
-            }
-            else
-            {
-                if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
-                {
-                    currentState = device.Status.Relays[channel].IsOn;
-                }
+                return;
             }
 
-            bool newState = !currentState;
+            // Record user action
+            _plugin.RecordUserAction();
 
-            // Toggle based on device type
-            bool success = false;
-            switch (deviceType)
+            // Execute based on group purpose
+            switch (group.Purpose)
             {
-                case ShellyDeviceType.Switch:
-                case ShellyDeviceType.ShellyPlus2PM:
-                    success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, channel, newState);
+                case GroupPurpose.Switch:
+                    ExecuteSwitchAction(group, actionIndex);
                     break;
-                case ShellyDeviceType.RGBW:
-                case ShellyDeviceType.Dimmer:
-                    success = await _plugin.ApiClient.SetLightStateAsync(deviceId, channel, newState);
-                    break;
-            }
 
-            if (success)
-            {
-                DebugLogger.Log($"Toggled device {deviceId} channel {channel} to {newState}");
-                ActionImageChanged(deviceId);
+                case GroupPurpose.Color:
+                    ExecuteColorAction(group, actionIndex);
+                    break;
+
+                case GroupPurpose.Brightness:
+                    ExecuteBrightnessAction(group, actionIndex);
+                    break;
+
+                case GroupPurpose.Thermostat:
+                    ExecuteThermostatAction(group, actionIndex);
+                    break;
             }
         }
 
-        private async System.Threading.Tasks.Task SetGroupColorAsync(DeviceGroup group, (int R, int G, int B, int W) color)
+        private async void ExecuteSwitchAction(DeviceGroup group, int actionIndex)
         {
-            DebugLogger.Log($"Setting color for group {group.Name} to R:{color.R} G:{color.G} B:{color.B} W:{color.W}");
+            var deviceChannels = new List<(string DeviceId, int Channel)>();
+
+            foreach (var deviceId in group.DeviceIds)
+            {
+                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                if (device != null)
+                {
+                    var deviceType = device.GetDeviceType();
+                    int channelCount = 1;
+
+                    if (deviceType == ShellyDeviceType.ShellyPlus2PM)
+                    {
+                        channelCount = device.Status?.Relays?.Count ?? 1;
+                    }
+                    else if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+                    {
+                        channelCount = device.Status?.Lights?.Count ?? 1;
+                    }
+
+                    for (int ch = 0; ch < channelCount; ch++)
+                    {
+                        deviceChannels.Add((deviceId, ch));
+                    }
+                }
+            }
+
+            if (actionIndex >= deviceChannels.Count)
+            {
+                return;
+            }
+
+            var (devId, channel) = deviceChannels[actionIndex];
+            var dev = _plugin.Devices.FirstOrDefault(d => d.Id == devId);
+
+            if (dev != null)
+            {
+                bool currentState = false;
+                var devType = dev.GetDeviceType();
+
+                if (devType == ShellyDeviceType.RGBW || devType == ShellyDeviceType.Dimmer)
+                {
+                    if (dev.Status?.Lights != null && dev.Status.Lights.Count > channel)
+                    {
+                        currentState = dev.Status.Lights[channel].IsOn;
+                    }
+                }
+                else
+                {
+                    if (dev.Status?.Relays != null && dev.Status.Relays.Count > channel)
+                    {
+                        currentState = dev.Status.Relays[channel].IsOn;
+                    }
+                }
+
+                bool newState = !currentState;
+
+                switch (devType)
+                {
+                    case ShellyDeviceType.Switch:
+                    case ShellyDeviceType.ShellyPlus2PM:
+                        await _plugin.ApiClient.SetRelayStateAsync(devId, channel, newState);
+                        break;
+                    case ShellyDeviceType.RGBW:
+                    case ShellyDeviceType.Dimmer:
+                        await _plugin.ApiClient.SetLightStateAsync(devId, channel, newState);
+                        break;
+                }
+
+                ActionImageChanged();
+            }
+        }
+
+        private async void ExecuteColorAction(DeviceGroup group, int actionIndex)
+        {
+            var colorKeys = _colorPresets.Keys.ToList();
+
+            if (actionIndex >= colorKeys.Count)
+            {
+                return;
+            }
+
+            var colorKey = colorKeys[actionIndex];
+            var color = _colorPresets[colorKey];
 
             for (int i = 0; i < group.DeviceIds.Count; i++)
             {
@@ -463,7 +490,6 @@ namespace ShellyLoupedeckPlugin.Actions
                     var deviceType = device.GetDeviceType();
                     if (deviceType == ShellyDeviceType.RGBW)
                     {
-                        // Preserve current brightness
                         int brightness = 100;
                         if (device.Status?.Lights != null && device.Status.Lights.Count > 0)
                         {
@@ -481,9 +507,14 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        private async System.Threading.Tasks.Task SetGroupBrightnessAsync(DeviceGroup group, int brightness)
+        private async void ExecuteBrightnessAction(DeviceGroup group, int actionIndex)
         {
-            DebugLogger.Log($"Setting brightness for group {group.Name} to {brightness}%");
+            if (actionIndex >= _brightnessPresets.Length)
+            {
+                return;
+            }
+
+            var brightness = _brightnessPresets[actionIndex];
 
             for (int i = 0; i < group.DeviceIds.Count; i++)
             {
@@ -499,9 +530,16 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        private async System.Threading.Tasks.Task SetGroupTemperatureAsync(DeviceGroup group, double temperature)
+        private async void ExecuteThermostatAction(DeviceGroup group, int actionIndex)
         {
-            DebugLogger.Log($"Setting temperature for group {group.Name} to {temperature}°C");
+            var temperatures = new double[] { 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0 };
+
+            if (actionIndex >= temperatures.Length)
+            {
+                return;
+            }
+
+            var temperature = temperatures[actionIndex];
 
             for (int i = 0; i < group.DeviceIds.Count; i++)
             {
