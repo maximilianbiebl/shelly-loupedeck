@@ -174,7 +174,7 @@ namespace ShellyLoupedeckPlugin.UI
             for (int i = 0; i < _folder.Buttons.Count; i++)
             {
                 var button = _folder.Buttons[i];
-                _buttonsListBox.Items.Add($"{i + 1}. {button.Label ?? "(Unlabeled)"}");
+                _buttonsListBox.Items.Add($"{i + 1}. {button.CustomLabel ?? "(Unlabeled)"}");
             }
 
             UpdateButtonStates();
@@ -252,12 +252,72 @@ namespace ShellyLoupedeckPlugin.UI
                 return;
             }
 
-            MessageBox.Show(
-                "Action selection coming soon!\n\nFor now, use 'Add Device' or 'Add Group'.",
-                "Feature In Progress",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+            var actions = new System.Collections.Generic.List<string>();
+            var actionData = new System.Collections.Generic.List<(string actionName, string actionParam, string label)>();
+
+            // Device-specific actions
+            foreach (var device in _plugin.Devices)
+            {
+                var deviceType = device.GetDeviceType();
+
+                // All devices get switch action
+                actions.Add($"{device.Name} - Switch");
+                actionData.Add(("DeviceSwitchAction", device.Id, $"{device.Name} - Switch"));
+
+                // RGBW devices
+                if (deviceType == ShellyDeviceType.RGBW)
+                {
+                    actions.Add($"{device.Name} - Color");
+                    actionData.Add(("RGBWColorAdjustment", device.Id, $"{device.Name} - Color"));
+
+                    actions.Add($"{device.Name} - Mode Toggle");
+                    actionData.Add(("RGBWModeToggle", device.Id, $"{device.Name} - Mode"));
+
+                    actions.Add($"{device.Name} - Brightness");
+                    actionData.Add(("RGBWBrightnessAdjustment", device.Id, $"{device.Name} - Bright"));
+                }
+
+                // Dimmer devices
+                if (deviceType == ShellyDeviceType.Dimmer || deviceType == ShellyDeviceType.RGBW)
+                {
+                    actions.Add($"{device.Name} - Dimmer");
+                    actionData.Add(("DimmerAdjustment", device.Id, $"{device.Name} - Dim"));
+                }
+
+                // Thermostat devices
+                if (deviceType == ShellyDeviceType.Thermostat)
+                {
+                    actions.Add($"{device.Name} - Temperature");
+                    actionData.Add(("ThermostatAdjustment", device.Id, $"{device.Name} - Temp"));
+
+                    actions.Add($"{device.Name} - Boost");
+                    actionData.Add(("ThermostatBoostAction", device.Id, $"{device.Name} - Boost"));
+                }
+            }
+
+            // Management commands
+            actions.Add("Device Overview");
+            actionData.Add(("DeviceOverviewCommand", "", "Overview"));
+
+            actions.Add("Group Management");
+            actionData.Add(("GroupManagementCommand", "", "Groups"));
+
+            actions.Add("Settings");
+            actionData.Add(("SettingsCommand", "", "Settings"));
+
+            if (actions.Count == 0)
+            {
+                MessageBox.Show("No actions available.", "No Actions", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var selector = new SimpleSelectionDialog("Select Action", actions);
+            if (selector.ShowDialog() == DialogResult.OK && selector.SelectedIndex >= 0)
+            {
+                var selected = actionData[selector.SelectedIndex];
+                _folder.Buttons.Add(new FolderButton(selected.actionName, selected.actionParam, selected.label));
+                LoadButtons();
+            }
         }
 
         private void RemoveButton_Click(object sender, EventArgs e)
