@@ -46,13 +46,12 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            ActionImageChanged();
+            // Trigger refresh of folder display
         }
 
         private void OnFoldersUpdated(object sender, EventArgs e)
         {
             UpdateDisplayName();
-            ActionImageChanged();
         }
 
         private void UpdateDisplayName()

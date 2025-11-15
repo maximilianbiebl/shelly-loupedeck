@@ -47,30 +47,12 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            CreateParameters();
+            // Trigger refresh when devices update
         }
 
         private void OnFoldersUpdated(object sender, EventArgs e)
         {
-            CreateParameters();
-        }
-
-        private void CreateParameters()
-        {
-            RemoveAllParameters();
-
-            // Add a parameter for each configured folder
-            // User can select which folder this instance should display
-            foreach (var folder in _plugin.Folders)
-            {
-                AddParameter($"folder_{folder.Id}", folder.Name, "Folders");
-            }
-
-            // If no folders exist, add a dummy parameter
-            if (_plugin.Folders.Count == 0)
-            {
-                AddParameter("no_folders", "No folders configured", "Info");
-            }
+            // Trigger refresh when folders update
         }
 
         public override IEnumerable<string> GetButtonPressActionNames()

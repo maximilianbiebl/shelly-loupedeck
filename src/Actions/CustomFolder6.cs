@@ -6,9 +6,9 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
-    public class CustomFolder5 : PluginDynamicFolder
+    public class CustomFolder6 : PluginDynamicFolder
     {
-        private const int SLOT_INDEX = 4;
+        private const int SLOT_INDEX = 5;
         private ShellyLoupedeckPlugin _plugin;
 
         private Dictionary<string, (int R, int G, int B, int W)> _colorPresets = new Dictionary<string, (int, int, int, int)>
@@ -22,10 +22,10 @@ namespace ShellyLoupedeckPlugin.Actions
             { "magenta", (255, 0, 255, 0) }
         };
 
-        public CustomFolder5()
+        public CustomFolder6()
         {
-            DisplayName = "Custom Folder 5";
-            Description = "Configurable folder slot 5";
+            DisplayName = "Custom Folder 6";
+            Description = "Configurable folder slot 6";
         }
 
         public override bool Load()
@@ -60,7 +60,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder != null)
                 DisplayName = folder.Name;
             else
-                DisplayName = "Custom Folder 5 (Empty)";
+                DisplayName = "Custom Folder 6 (Empty)";
         }
 
         private FolderConfiguration GetAssignedFolder()
@@ -123,6 +123,7 @@ namespace ShellyLoupedeckPlugin.Actions
             var commandId = parts[1];
             var cmdParts = commandId.Split('_');
 
+            // Find button configuration for custom labels
             var folder = GetAssignedFolder();
             if (folder != null)
             {
@@ -134,6 +135,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     return button.CustomLabel;
             }
 
+            // Default display names
             if (cmdParts.Length < 2) return commandId;
 
             switch (cmdParts[0])
