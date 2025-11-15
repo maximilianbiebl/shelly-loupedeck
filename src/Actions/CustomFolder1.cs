@@ -137,7 +137,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             // Default display names
-            if (cmdParts.Length < 2) return commandId;
+            if (cmdParts.Length < 2) return actionParameter;
 
             switch (cmdParts[0])
             {
