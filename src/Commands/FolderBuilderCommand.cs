@@ -22,11 +22,26 @@ namespace ShellyLoupedeckPlugin.Commands
         protected override bool OnLoad()
         {
             DebugLogger.Log("=== FolderBuilderCommand OnLoad called ===");
-            _plugin = (ShellyLoupedeckPlugin)Plugin;
-            _plugin.FoldersUpdated += OnFoldersUpdated;
-            CreateParameters();
-            DebugLogger.Log($"FolderBuilderCommand: Loaded with {_plugin.Folders.Count} folders");
-            return base.OnLoad();
+            try
+            {
+                _plugin = (ShellyLoupedeckPlugin)Plugin;
+                _plugin.FoldersUpdated += OnFoldersUpdated;
+
+                DebugLogger.Log($"FolderBuilderCommand: Plugin reference obtained, Folders count: {_plugin?.Folders?.Count ?? 0}");
+
+                CreateParameters();
+
+                DebugLogger.Log($"FolderBuilderCommand: Successfully loaded with {_plugin.Folders.Count} folders");
+                return base.OnLoad();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"!!! FolderBuilderCommand OnLoad ERROR: {ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Log($"!!! FolderBuilderCommand OnLoad STACK: {ex.StackTrace}");
+
+                // Still try to load even if CreateParameters fails
+                return base.OnLoad();
+            }
         }
 
         protected override bool OnUnload()
@@ -42,21 +57,28 @@ namespace ShellyLoupedeckPlugin.Commands
 
         private void CreateParameters()
         {
-            RemoveAllParameters();
-
-            if (string.IsNullOrEmpty(_currentState))
+            try
             {
-                // Main menu
-                AddParameter("create_new", "Create New Folder", "Main Menu");
+                DebugLogger.Log($"FolderBuilderCommand: CreateParameters called, state={_currentState ?? "null"}");
 
-                // Show existing folders for editing
-                for (int i = 0; i < _plugin.Folders.Count && i < 10; i++)
+                RemoveAllParameters();
+
+                if (string.IsNullOrEmpty(_currentState))
                 {
-                    var folder = _plugin.Folders[i];
-                    AddParameter($"edit_{folder.Id}", $"Edit: {folder.Name} ({folder.Buttons.Count} buttons)", "Edit Folders");
+                    // Main menu
+                    AddParameter("create_new", "Create New Folder", "Main Menu");
+
+                    // Show existing folders for editing
+                    if (_plugin?.Folders != null)
+                    {
+                        for (int i = 0; i < _plugin.Folders.Count && i < 10; i++)
+                        {
+                            var folder = _plugin.Folders[i];
+                            AddParameter($"edit_{folder.Id}", $"Edit: {folder.Name} ({folder.Buttons.Count} buttons)", "Edit Folders");
+                        }
+                    }
                 }
-            }
-            else if (_currentState.StartsWith("edit_"))
+                else if (_currentState.StartsWith("edit_"))
             {
                 // Folder editor menu
                 var folderId = _currentState.Substring(5);
@@ -77,7 +99,6 @@ namespace ShellyLoupedeckPlugin.Commands
             {
                 // Button type selection
                 AddParameter("type_plugin_action", "➕ Any Plugin Action", "Button Types");
-                AddParameter("", "", "───────────");
                 AddParameter("type_device_toggle", "Device Toggle", "Quick Actions");
                 AddParameter("type_group_color", "Group Color", "Quick Actions");
                 AddParameter("type_group_brightness", "Group Brightness", "Quick Actions");
@@ -87,80 +108,95 @@ namespace ShellyLoupedeckPlugin.Commands
             else if (_currentState == "select_device")
             {
                 // Device selection for toggle
-                foreach (var device in _plugin.Devices)
+                if (_plugin?.Devices != null)
                 {
-                    AddParameter($"device_{device.Id}", device.Name, "Devices");
+                    foreach (var device in _plugin.Devices)
+                    {
+                        AddParameter($"device_{device.Id}", device.Name, "Devices");
+                    }
                 }
                 AddParameter("back", "⬅ Back", "Navigation");
             }
             else if (_currentState == "select_group_color")
             {
                 // Color selection
-                var colorGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color);
-                foreach (var group in colorGroups)
+                if (_plugin?.Groups != null)
                 {
-                    AddParameter($"color_red_{group.Id}", $"{group.Name} - Red", "Colors");
-                    AddParameter($"color_green_{group.Id}", $"{group.Name} - Green", "Colors");
-                    AddParameter($"color_blue_{group.Id}", $"{group.Name} - Blue", "Colors");
-                    AddParameter($"color_white_{group.Id}", $"{group.Name} - White", "Colors");
-                    AddParameter($"color_yellow_{group.Id}", $"{group.Name} - Yellow", "Colors");
-                    AddParameter($"color_cyan_{group.Id}", $"{group.Name} - Cyan", "Colors");
-                    AddParameter($"color_magenta_{group.Id}", $"{group.Name} - Magenta", "Colors");
+                    var colorGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color);
+                    foreach (var group in colorGroups)
+                    {
+                        AddParameter($"color_red_{group.Id}", $"{group.Name} - Red", "Colors");
+                        AddParameter($"color_green_{group.Id}", $"{group.Name} - Green", "Colors");
+                        AddParameter($"color_blue_{group.Id}", $"{group.Name} - Blue", "Colors");
+                        AddParameter($"color_white_{group.Id}", $"{group.Name} - White", "Colors");
+                        AddParameter($"color_yellow_{group.Id}", $"{group.Name} - Yellow", "Colors");
+                        AddParameter($"color_cyan_{group.Id}", $"{group.Name} - Cyan", "Colors");
+                        AddParameter($"color_magenta_{group.Id}", $"{group.Name} - Magenta", "Colors");
+                    }
                 }
                 AddParameter("back", "⬅ Back", "Navigation");
             }
             else if (_currentState == "select_group_brightness")
             {
                 // Brightness selection
-                var dimmerGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness);
-                foreach (var group in dimmerGroups)
+                if (_plugin?.Groups != null)
+                {
+                    var dimmerGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness);
+                    foreach (var group in dimmerGroups)
                 {
                     AddParameter($"bright_25_{group.Id}", $"{group.Name} - 25%", "Brightness");
                     AddParameter($"bright_50_{group.Id}", $"{group.Name} - 50%", "Brightness");
                     AddParameter($"bright_75_{group.Id}", $"{group.Name} - 75%", "Brightness");
                     AddParameter($"bright_100_{group.Id}", $"{group.Name} - 100%", "Brightness");
                 }
+                }
                 AddParameter("back", "⬅ Back", "Navigation");
             }
             else if (_currentState == "select_group_toggle")
             {
                 // Group toggle selection
-                foreach (var group in _plugin.Groups)
+                if (_plugin?.Groups != null)
                 {
-                    AddParameter($"grouptoggle_{group.Id}", $"{group.Name} (All)", "Groups");
+                    foreach (var group in _plugin.Groups)
+                    {
+                        AddParameter($"grouptoggle_{group.Id}", $"{group.Name} (All)", "Groups");
+                    }
                 }
                 AddParameter("back", "⬅ Back", "Navigation");
             }
             else if (_currentState == "select_plugin_action")
             {
                 // Show all available plugin actions
-                // Device Actions
-                foreach (var device in _plugin.Devices)
+                if (_plugin?.Devices != null)
                 {
-                    AddParameter($"action_DeviceSwitchAction_{device.Id}", device.Name, "Device Switch");
-                }
+                    // Device Actions
+                    foreach (var device in _plugin.Devices)
+                    {
+                        AddParameter($"action_DeviceSwitchAction_{device.Id}", device.Name, "Device Switch");
+                    }
 
-                // RGBW Actions
-                var rgbwDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.RGBW);
-                foreach (var device in rgbwDevices)
-                {
-                    AddParameter($"action_RGBWModeToggle_{device.Id}", $"{device.Name} - Mode Toggle", "RGBW");
-                    AddParameter($"action_RGBWColorAdjustment_{device.Id}", $"{device.Name} - Color", "RGBW");
-                }
+                    // RGBW Actions
+                    var rgbwDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.RGBW);
+                    foreach (var device in rgbwDevices)
+                    {
+                        AddParameter($"action_RGBWModeToggle_{device.Id}", $"{device.Name} - Mode Toggle", "RGBW");
+                        AddParameter($"action_RGBWColorAdjustment_{device.Id}", $"{device.Name} - Color", "RGBW");
+                    }
 
-                // Dimmer Actions
-                var dimmerDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Dimmer || d.GetDeviceType() == ShellyDeviceType.RGBW);
-                foreach (var device in dimmerDevices)
-                {
-                    AddParameter($"action_DimmerAdjustment_{device.Id}", $"{device.Name} - Dimmer", "Dimmer");
-                }
+                    // Dimmer Actions
+                    var dimmerDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Dimmer || d.GetDeviceType() == ShellyDeviceType.RGBW);
+                    foreach (var device in dimmerDevices)
+                    {
+                        AddParameter($"action_DimmerAdjustment_{device.Id}", $"{device.Name} - Dimmer", "Dimmer");
+                    }
 
-                // Thermostat Actions
-                var thermostatDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Thermostat);
-                foreach (var device in thermostatDevices)
-                {
-                    AddParameter($"action_ThermostatAdjustment_{device.Id}", $"{device.Name} - Adjust", "Thermostat");
-                    AddParameter($"action_ThermostatBoostAction_{device.Id}", $"{device.Name} - Boost", "Thermostat");
+                    // Thermostat Actions
+                    var thermostatDevices = _plugin.Devices.Where(d => d.GetDeviceType() == ShellyDeviceType.Thermostat);
+                    foreach (var device in thermostatDevices)
+                    {
+                        AddParameter($"action_ThermostatAdjustment_{device.Id}", $"{device.Name} - Adjust", "Thermostat");
+                        AddParameter($"action_ThermostatBoostAction_{device.Id}", $"{device.Name} - Boost", "Thermostat");
+                    }
                 }
 
                 // Overview/Management
@@ -171,7 +207,22 @@ namespace ShellyLoupedeckPlugin.Commands
                 AddParameter("back", "⬅ Back", "Navigation");
             }
 
-            ActionImageChanged();
+                DebugLogger.Log("FolderBuilderCommand: CreateParameters completed successfully");
+                ActionImageChanged();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"!!! FolderBuilderCommand CreateParameters ERROR: {ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Log($"!!! FolderBuilderCommand CreateParameters STACK: {ex.StackTrace}");
+
+                // Add a safe default parameter so the command is still visible
+                try
+                {
+                    AddParameter("error", "⚠ Error loading folders", "Error");
+                    ActionImageChanged();
+                }
+                catch { /* Ignore errors in error handling */ }
+            }
         }
 
         protected override void RunCommand(string actionParameter)
