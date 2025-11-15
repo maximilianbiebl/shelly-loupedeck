@@ -171,8 +171,29 @@ namespace ShellyLoupedeckPlugin.Actions
                             b.ActionName == actionName &&
                             b.ActionParameter == actionParam);
 
-                        if (genericButton != null)
-                            return genericButton.CustomLabel ?? actionName;
+                        if (genericButton != null && !string.IsNullOrEmpty(genericButton.CustomLabel))
+                            return genericButton.CustomLabel;
+
+                        // Default display for generic actions based on type
+                        if (actionName == "DeviceSwitchAction")
+                        {
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return device?.Name ?? "Switch";
+                        }
+                        else if (actionName == "ThermostatBoostAction")
+                        {
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return device != null ? $"{device.Name} Boost" : "Boost";
+                        }
+                        else if (actionName == "RGBWModeToggle")
+                        {
+                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                            return device != null ? $"{device.Name} Mode" : "Mode";
+                        }
+                        else if (actionName.Contains("Adjustment"))
+                        {
+                            return "N/A"; // Adjustments can't work in folders
+                        }
                     }
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
             }
@@ -192,8 +213,8 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-            // actionParameter is already the command name (e.g. "groupcolor_id_red")
-            var cmdParts = actionParameter.Split('_');
+                // actionParameter is already the command name (e.g. "groupcolor_id_red")
+                var cmdParts = actionParameter.Split('_');
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -278,6 +299,59 @@ namespace ShellyLoupedeckPlugin.Actions
                                 builder.Clear(new BitmapColor(0, 150, 200));
                                 builder.DrawText(group.Name, BitmapColor.White, 12);
                                 builder.DrawText("ALL", BitmapColor.White, 18);
+                            }
+                        }
+                        break;
+
+                    case "generic":
+                        if (cmdParts.Length >= 2)
+                        {
+                            var actionName = cmdParts[1];
+                            var actionParam = cmdParts.Length >= 3 ? cmdParts[2] : null;
+
+                            if (actionName == "DeviceSwitchAction" && actionParam != null)
+                            {
+                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                                if (device != null)
+                                {
+                                    var isOn = GetDeviceState(device, 0);
+                                    builder.Clear(isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(80, 80, 80));
+                                    builder.DrawText(device.Name, BitmapColor.White, 11);
+                                    builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 20);
+                                }
+                            }
+                            else if (actionName == "ThermostatBoostAction" && actionParam != null)
+                            {
+                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                                if (device != null)
+                                {
+                                    builder.Clear(new BitmapColor(200, 100, 0));
+                                    builder.DrawText(device.Name, BitmapColor.White, 10);
+                                    builder.DrawText("BOOST", BitmapColor.White, 16);
+                                }
+                            }
+                            else if (actionName == "RGBWModeToggle" && actionParam != null)
+                            {
+                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
+                                if (device != null)
+                                {
+                                    builder.Clear(new BitmapColor(150, 0, 200));
+                                    builder.DrawText(device.Name, BitmapColor.White, 10);
+                                    builder.DrawText("MODE", BitmapColor.White, 18);
+                                }
+                            }
+                            else if (actionName.Contains("Adjustment"))
+                            {
+                                // Adjustments can't work in folders - show N/A
+                                builder.Clear(new BitmapColor(60, 60, 60));
+                                builder.DrawText("N/A", BitmapColor.White, 22);
+                                builder.DrawText("Use main\ninterface", BitmapColor.White, 8);
+                            }
+                            else
+                            {
+                                // Unknown generic action
+                                builder.Clear(BitmapColor.Black);
+                                builder.DrawText(actionName, BitmapColor.White, 10);
                             }
                         }
                         break;
@@ -488,6 +562,27 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (i < group.DeviceIds.Count - 1)
                     await System.Threading.Tasks.Task.Delay(2000);
             }
+        }
+
+        private bool GetDeviceState(ShellyDevice device, int channel = 0)
+        {
+            // Check Gen 3 devices first
+            if (device.Switch0 != null && channel == 0)
+                return device.Switch0.Output;
+
+            // Check Gen 1/2 devices
+            if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
+                return device.Status.Relays[channel].IsOn;
+            if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
+                return device.Status.Lights[channel].IsOn;
+
+            // Fallback for Gen 1/2 devices with direct fields
+            if (device.Relays != null && device.Relays.Count > channel)
+                return device.Relays[channel].IsOn;
+            if (device.Lights != null && device.Lights.Count > channel)
+                return device.Lights[channel].IsOn;
+
+            return false;
         }
     }
 }
