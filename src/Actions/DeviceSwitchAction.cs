@@ -39,65 +39,39 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            DebugLogger.Log("=== DeviceSwitchAction: OnDevicesUpdated called ===");
             CreateParameters();
         }
 
         private void CreateParameters()
         {
-            DebugLogger.Log($"=== DeviceSwitchAction: CreateParameters called, Plugin has {_plugin.Devices.Count} devices ===");
-
-            // Remove all existing parameters
             RemoveAllParameters();
 
-            // Add individual devices
-            int deviceCount = 0;
             foreach (var device in _plugin.Devices)
             {
                 var deviceType = device.GetDeviceType();
-                DebugLogger.Log($"  Device {device.Id} ({device.Name}): Type={deviceType}");
 
                 if (deviceType == ShellyDeviceType.Switch ||
                     deviceType == ShellyDeviceType.ShellyPlus2PM ||
                     deviceType == ShellyDeviceType.RGBW ||
                     deviceType == ShellyDeviceType.Dimmer)
                 {
-                    // Check if device has multiple relays (like Shelly Switch 2.5)
                     int relayCount = 0;
                     if (device.Status?.Relays != null)
-                    {
                         relayCount = device.Status.Relays.Count;
-                    }
                     else if (device.Relays != null)
-                    {
                         relayCount = device.Relays.Count;
-                    }
 
                     if (relayCount > 1)
                     {
-                        // Add parameter for each relay
                         for (int i = 0; i < relayCount; i++)
-                        {
                             AddParameter($"{device.Id}_ch{i}", $"{device.Name} - Channel {i + 1}", "Devices");
-                            DebugLogger.Log($"    -> Added as parameter with channel {i}");
-                            deviceCount++;
-                        }
                     }
                     else
                     {
-                        // Single relay/light device
                         AddParameter(device.Id, device.Name, "Devices");
-                        DebugLogger.Log($"    -> Added as parameter");
-                        deviceCount++;
                     }
                 }
-                else
-                {
-                    DebugLogger.Log($"    -> Skipped (wrong type for switch action)");
-                }
             }
-
-            DebugLogger.Log($"DeviceSwitchAction: Added {deviceCount} device parameters");
 
             // Add groups
             foreach (var group in _plugin.Groups)

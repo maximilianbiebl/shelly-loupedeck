@@ -116,13 +116,11 @@ namespace ShellyLoupedeckPlugin.Actions
                             {
                                 // Store RGB values at current gain level
                                 _plugin.DeviceColorStates[device.Id] = (light.Red, light.Green, light.Blue, 0, null);
-                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: COLOR mode RGB=({light.Red},{light.Green},{light.Blue}) @ gain={light.Gain}%");
                             }
                             else
                             {
                                 // White mode
                                 _plugin.DeviceColorStates[device.Id] = (0, 0, 0, 255, null);
-                                DebugLogger.Log($"  Initialized device {device.Id} color state from device: WHITE mode @ brightness={light.Brightness}%");
                             }
                         }
                         // Do NOT auto-detect mode changes - only trust manually set color states
