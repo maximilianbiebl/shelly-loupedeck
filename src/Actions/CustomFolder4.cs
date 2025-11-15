@@ -369,12 +369,8 @@ namespace ShellyLoupedeckPlugin.Actions
                     }
                 }
 
-                // Fallback: device name + action type
-                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                if (device != null)
-                {
-                    return $"{device.Name} - {actionType}";
-                }
+                // Fallback: just show action type (no device name)
+                return actionType;
                 return actionType;
             }
 
@@ -615,9 +611,8 @@ namespace ShellyLoupedeckPlugin.Actions
                         }
                     }
 
-                    if (labelText == null && device != null)
-                        labelText = device.Name;
 
+                    // Only show custom label if set, otherwise show nothing (icon is enough)
                     if (labelText != null)
                         builder.DrawText(labelText, BitmapColor.White, 16);
 

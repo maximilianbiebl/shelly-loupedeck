@@ -369,12 +369,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     }
                 }
 
-                // Fallback: device name + action type
-                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                if (device != null)
-                {
-                    return $"{device.Name} - {actionType}";
-                }
+                // Fallback: just show action type (no device name)
                 return actionType;
             }
 
