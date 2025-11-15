@@ -250,8 +250,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 }
 
                                 builder.Clear(isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(80, 80, 80));
-                                builder.DrawText(device.Name, BitmapColor.White, 11);
-                                builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 20);
+                                builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 30);
                             }
                         }
                         break;
@@ -297,8 +296,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             if (group != null)
                             {
                                 builder.Clear(new BitmapColor(0, 150, 200));
-                                builder.DrawText(group.Name, BitmapColor.White, 12);
-                                builder.DrawText("ALL", BitmapColor.White, 18);
+                                builder.DrawText("ALL", BitmapColor.White, 28);
                             }
                         }
                         break;
@@ -316,29 +314,18 @@ namespace ShellyLoupedeckPlugin.Actions
                                 {
                                     var isOn = GetDeviceState(device, 0);
                                     builder.Clear(isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(80, 80, 80));
-                                    builder.DrawText(device.Name, BitmapColor.White, 11);
-                                    builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 20);
+                                    builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 30);
                                 }
                             }
                             else if (actionName == "ThermostatBoostAction" && actionParam != null)
                             {
-                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                                if (device != null)
-                                {
-                                    builder.Clear(new BitmapColor(200, 100, 0));
-                                    builder.DrawText(device.Name, BitmapColor.White, 10);
-                                    builder.DrawText("BOOST", BitmapColor.White, 16);
-                                }
+                                builder.Clear(new BitmapColor(200, 100, 0));
+                                builder.DrawText("BOOST", BitmapColor.White, 22);
                             }
                             else if (actionName == "RGBWModeToggle" && actionParam != null)
                             {
-                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                                if (device != null)
-                                {
-                                    builder.Clear(new BitmapColor(150, 0, 200));
-                                    builder.DrawText(device.Name, BitmapColor.White, 10);
-                                    builder.DrawText("MODE", BitmapColor.White, 18);
-                                }
+                                builder.Clear(new BitmapColor(150, 0, 200));
+                                builder.DrawText("MODE", BitmapColor.White, 24);
                             }
                             else if (actionName.Contains("Adjustment"))
                             {

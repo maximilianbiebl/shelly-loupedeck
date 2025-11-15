@@ -375,8 +375,8 @@ namespace ShellyLoupedeckPlugin.Actions
 
             using (var builder = new BitmapBuilder(imageSize))
             {
-                builder.Clear(isOn ? new BitmapColor(0, 200, 0) : BitmapColor.Black);
-                builder.DrawText(deviceName);
+                builder.Clear(isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(80, 80, 80));
+                builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 30);
 
                 return builder.ToImage();
             }
