@@ -203,7 +203,7 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var deviceId = cmdParts.Length >= 3 ? cmdParts[2] : null;
                 var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                return device?.Name ?? "Adjust";
+                return dev?.Name ?? "Adjust";
             }
 
             // Handle display commands - show current value
@@ -304,7 +304,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         if (actionName == "DeviceSwitchAction")
                         {
                             var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device?.Name ?? "Switch";
+                            return dev?.Name ?? "Switch";
                         }
                         else if (actionName == "ThermostatBoostAction")
                         {
@@ -319,7 +319,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         else if (actionName.Contains("Adjustment"))
                         {
                             var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                            return device?.Name ?? "Adjust";
+                            return dev?.Name ?? "Adjust";
                         }
                     }
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
@@ -361,7 +361,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var deviceId = cmdParts[2];
                     var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (device != null)
+                    if (dev != null)
                     {
                         int currentBrightness = GetDeviceBrightness(device);
                         var grayValue = (byte)(currentBrightness * 2.55);
@@ -376,7 +376,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     var deviceId = cmdParts[2];
                     var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                    if (device != null)
+                    if (dev != null)
                     {
                         double currentTemp = GetDeviceTemperature(device);
                         builder.Clear(new BitmapColor(100, 60, 0));
@@ -432,7 +432,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 int.TryParse(channelParam.Substring(2), out channel);
 
                             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                            if (device != null)
+                            if (dev != null)
                             {
                                 bool isOn = false;
                                 var deviceType = device.GetDeviceType();
@@ -509,9 +509,9 @@ namespace ShellyLoupedeckPlugin.Actions
                             if (actionName == "DeviceSwitchAction" && actionParam != null)
                             {
                                 var dev = _plugin.Devices.FirstOrDefault(d => d.Id == actionParam);
-                                if (device != null)
+                                if (dev != null)
                                 {
-                                    var isOn = GetDeviceState(device, 0);
+                                    var isOn = GetDeviceState(dev, 0);
                                     builder.Clear(isOn ? new BitmapColor(0, 200, 0) : new BitmapColor(80, 80, 80));
                                     builder.DrawText(isOn ? "ON" : "OFF", BitmapColor.White, 30);
                                 }
