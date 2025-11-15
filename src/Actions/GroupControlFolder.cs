@@ -64,47 +64,43 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        public override IEnumerable<string> GetButtonPressActionNames(string actionParameter)
+        public override IEnumerable<string> GetButtonPressActionNames()
         {
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
-            if (string.IsNullOrEmpty(actionParameter) || !actionParameter.StartsWith("folder_"))
-                return actions;
-
-            var folderId = actionParameter.Substring(7);
-            var folder = _plugin.Folders.FirstOrDefault(f => f.Id == folderId);
-            if (folder == null)
-                return actions;
-
-            foreach (var button in folder.Buttons)
+            // Show buttons from all folders (for now - will be filtered by parameter later)
+            foreach (var folder in _plugin.Folders)
             {
-                string commandName = null;
-
-                switch (button.Type)
+                foreach (var button in folder.Buttons)
                 {
-                    case FolderButtonType.DeviceToggle:
-                        commandName = $"toggle_{button.TargetId}_{button.Parameter}";
-                        break;
+                    string commandName = null;
 
-                    case FolderButtonType.GroupColor:
-                        commandName = $"groupcolor_{button.TargetId}_{button.Parameter}";
-                        break;
+                    switch (button.Type)
+                    {
+                        case FolderButtonType.DeviceToggle:
+                            commandName = $"toggle_{button.TargetId}_{button.Parameter}";
+                            break;
 
-                    case FolderButtonType.GroupBrightness:
-                        commandName = $"groupbrightness_{button.TargetId}_{button.Parameter}";
-                        break;
+                        case FolderButtonType.GroupColor:
+                            commandName = $"groupcolor_{button.TargetId}_{button.Parameter}";
+                            break;
 
-                    case FolderButtonType.GroupTemperature:
-                        commandName = $"grouptemp_{button.TargetId}_{button.Parameter}";
-                        break;
+                        case FolderButtonType.GroupBrightness:
+                            commandName = $"groupbrightness_{button.TargetId}_{button.Parameter}";
+                            break;
 
-                    case FolderButtonType.GroupToggle:
-                        commandName = $"grouptoggle_{button.TargetId}";
-                        break;
+                        case FolderButtonType.GroupTemperature:
+                            commandName = $"grouptemp_{button.TargetId}_{button.Parameter}";
+                            break;
+
+                        case FolderButtonType.GroupToggle:
+                            commandName = $"grouptoggle_{button.TargetId}";
+                            break;
+                    }
+
+                    if (commandName != null)
+                        actions.Add(CreateCommandName(commandName));
                 }
-
-                if (commandName != null)
-                    actions.Add(CreateCommandName(commandName));
             }
 
             return actions;
