@@ -26,7 +26,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
         public CustomFolder2()
         {
-            DisplayName = "Custom Folder 1";
+            DisplayName = "Custom Folder 2";
             Description = "Configurable folder slot 1";
         }
 
@@ -98,7 +98,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (folder != null)
                 DisplayName = folder.Name;
             else
-                DisplayName = "Custom Folder 1 (Empty)";
+                DisplayName = "Custom Folder 2 (Empty)";
         }
 
         private FolderConfiguration GetAssignedFolder()
