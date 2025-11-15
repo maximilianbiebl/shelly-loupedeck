@@ -728,7 +728,17 @@ namespace ShellyLoupedeckPlugin.Actions
                 DebugLogger.Log($"[CustomFolder1] Opening device settings for: {cmdParts[1]}");
                 _currentSubmenu = $"device_{cmdParts[1]}";
                 DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
-                OnDevicesUpdated(this, EventArgs.Empty);
+
+                // Force folder refresh by triggering action image changed
+                try
+                {
+                    ActionImageChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
@@ -737,8 +747,20 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var settingType = cmdParts[1];
                 var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder1] Opening {settingType} menu for: {deviceId}");
                 _currentSubmenu = $"{settingType}_{deviceId}";
-                OnDevicesUpdated(this, EventArgs.Empty);
+                DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    ActionImageChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
@@ -747,8 +769,20 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var channel = cmdParts[1];
                 var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder1] Opening color {channel} menu for: {deviceId}");
                 _currentSubmenu = $"color_{channel}_{deviceId}";
-                OnDevicesUpdated(this, EventArgs.Empty);
+                DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    ActionImageChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
