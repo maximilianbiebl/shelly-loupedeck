@@ -33,8 +33,6 @@ namespace ShellyLoupedeckPlugin.Actions
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
             _plugin.FoldersUpdated += OnFoldersUpdated;
-
-            CreateParameters();
             return true;
         }
 
