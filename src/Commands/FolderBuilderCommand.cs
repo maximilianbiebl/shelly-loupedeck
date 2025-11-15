@@ -110,7 +110,7 @@ namespace ShellyLoupedeckPlugin.Commands
             else if (_currentState == "select_group_brightness")
             {
                 // Brightness selection
-                var dimmerGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Dimmer);
+                var dimmerGroups = _plugin.Groups.Where(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness);
                 foreach (var group in dimmerGroups)
                 {
                     AddParameter($"bright_25_{group.Id}", $"{group.Name} - 25%", "Brightness");
