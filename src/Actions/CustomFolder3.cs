@@ -38,12 +38,12 @@ namespace ShellyLoupedeckPlugin.Actions
             return true;
         }
 
-        public override void Activate()
+        public override bool Activate()
         {
             // Reset to main menu when folder is opened
             DebugLogger.Log("[CustomFolder3] Folder activated, resetting to main menu");
             _currentSubmenu = null;
-            base.Activate();
+            return base.Activate();
         }
 
         public override bool Unload()
