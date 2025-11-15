@@ -9,7 +9,7 @@ namespace ShellyLoupedeckPlugin.Actions
     public class GroupControlFolder : PluginDynamicFolder
     {
         private ShellyLoupedeckPlugin _plugin;
-        private List<string> _buttonActions = new List<string>();
+        private string _currentGroupId = null;
 
         private Dictionary<string, (int R, int G, int B, int W)> _colorPresets = new Dictionary<string, (int, int, int, int)>
         {
@@ -34,7 +34,7 @@ namespace ShellyLoupedeckPlugin.Actions
             _plugin.DevicesUpdated += OnDevicesUpdated;
             _plugin.GroupsUpdated += OnGroupsUpdated;
 
-            BuildButtonList();
+            CreateParameters();
             return true;
         }
 
@@ -47,66 +47,75 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            BuildButtonList();
+            CreateParameters();
         }
 
         private void OnGroupsUpdated(object sender, EventArgs e)
         {
-            BuildButtonList();
+            CreateParameters();
         }
 
-        private void BuildButtonList()
+        private void CreateParameters()
         {
-            _buttonActions.Clear();
+            RemoveAllParameters();
 
             foreach (var group in _plugin.Groups)
             {
-                switch (group.Purpose)
-                {
-                    case GroupPurpose.Switch:
-                        foreach (var deviceId in group.DeviceIds)
-                        {
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                            if (device != null)
-                            {
-                                var deviceType = device.GetDeviceType();
-                                int channelCount = 1;
-
-                                if (deviceType == ShellyDeviceType.ShellyPlus2PM)
-                                    channelCount = device.Status?.Relays?.Count ?? 1;
-                                else if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
-                                    channelCount = device.Status?.Lights?.Count ?? 1;
-
-                                for (int ch = 0; ch < channelCount; ch++)
-                                    _buttonActions.Add($"toggle_{group.Id}_{deviceId}_ch{ch}");
-                            }
-                        }
-                        break;
-
-                    case GroupPurpose.Color:
-                        foreach (var color in _colorPresets.Keys)
-                            _buttonActions.Add($"color_{group.Id}_{color}");
-                        break;
-
-                    case GroupPurpose.Brightness:
-                        foreach (var brightness in new[] { 25, 50, 75, 100 })
-                            _buttonActions.Add($"brightness_{group.Id}_{brightness}");
-                        break;
-
-                    case GroupPurpose.Thermostat:
-                        foreach (var temp in new[] { 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0 })
-                            _buttonActions.Add($"temp_{group.Id}_{temp:F1}");
-                        break;
-                }
+                AddParameter($"group_{group.Id}", group.Name, "Groups");
             }
         }
 
-        public override IEnumerable<string> GetButtonPressActionNames()
+        public override IEnumerable<string> GetButtonPressActionNames(string actionParameter)
         {
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
-            foreach (var action in _buttonActions)
-                actions.Add(CreateCommandName(action));
+            // Extract group ID from parameter
+            if (string.IsNullOrEmpty(actionParameter) || !actionParameter.StartsWith("group_"))
+                return actions;
+
+            var groupId = actionParameter.Substring(6);
+            var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null)
+                return actions;
+
+            // Build button list for this specific group
+            switch (group.Purpose)
+            {
+                case GroupPurpose.Switch:
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                        if (device != null)
+                        {
+                            var deviceType = device.GetDeviceType();
+                            int channelCount = 1;
+
+                            if (deviceType == ShellyDeviceType.ShellyPlus2PM)
+                                channelCount = device.Status?.Relays?.Count ?? 1;
+                            else if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+                                channelCount = device.Status?.Lights?.Count ?? 1;
+
+                            for (int ch = 0; ch < channelCount; ch++)
+                                actions.Add(CreateCommandName($"toggle_{deviceId}_ch{ch}"));
+                        }
+                    }
+                    break;
+
+                case GroupPurpose.Color:
+                    foreach (var color in _colorPresets.Keys)
+                        actions.Add(CreateCommandName($"color_{color}"));
+                    break;
+
+                case GroupPurpose.Brightness:
+                    foreach (var brightness in new[] { 25, 50, 75, 100 })
+                        actions.Add(CreateCommandName($"brightness_{brightness}"));
+                    break;
+
+                case GroupPurpose.Thermostat:
+                    foreach (var temp in new[] { 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0 })
+                        actions.Add(CreateCommandName($"temp_{temp:F1}"));
+                    break;
+            }
 
             return actions;
         }
@@ -119,29 +128,34 @@ namespace ShellyLoupedeckPlugin.Actions
             var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
             if (parts.Length < 2) return "?";
 
+            var folderParam = parts[0]; // group_{groupId}
             var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
-            if (cmdParts.Length < 3) return commandId;
 
-            var groupId = cmdParts[1];
+            if (!folderParam.StartsWith("group_"))
+                return commandId;
+
+            var groupId = folderParam.Substring(6);
             var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
             if (group == null) return "N/A";
+
+            var cmdParts = commandId.Split('_');
+            if (cmdParts.Length < 2) return commandId;
 
             switch (cmdParts[0])
             {
                 case "toggle":
-                    var deviceId = cmdParts[2];
+                    var deviceId = cmdParts[1];
                     var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                     return device?.Name ?? deviceId;
 
                 case "color":
-                    return $"{group.Name} - {cmdParts[2].ToUpper()}";
+                    return cmdParts[1].ToUpper();
 
                 case "brightness":
-                    return $"{group.Name} - {cmdParts[2]}%";
+                    return $"{cmdParts[1]}%";
 
                 case "temp":
-                    return $"{group.Name} - {cmdParts[2]}°C";
+                    return $"{cmdParts[1]}°C";
             }
 
             return commandId;
