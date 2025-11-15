@@ -6,10 +6,10 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
-    public class GroupControlFolder : PluginDynamicFolder
+    public class CustomFolder5 : PluginDynamicFolder
     {
+        private const int SLOT_INDEX = 4;
         private ShellyLoupedeckPlugin _plugin;
-        private string _activeFolderId = null; // Track which folder is currently open
 
         private Dictionary<string, (int R, int G, int B, int W)> _colorPresets = new Dictionary<string, (int, int, int, int)>
         {
@@ -22,10 +22,10 @@ namespace ShellyLoupedeckPlugin.Actions
             { "magenta", (255, 0, 255, 0) }
         };
 
-        public GroupControlFolder()
+        public CustomFolder5()
         {
-            DisplayName = "Group Controls";
-            Description = "Configurable folder with group control buttons";
+            DisplayName = "Custom Folder 5";
+            Description = "Configurable folder slot 5";
         }
 
         public override bool Load()
@@ -33,8 +33,7 @@ namespace ShellyLoupedeckPlugin.Actions
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
             _plugin.FoldersUpdated += OnFoldersUpdated;
-
-            CreateParameters();
+            UpdateDisplayName();
             return true;
         }
 
@@ -47,55 +46,40 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private void OnDevicesUpdated(object sender, EventArgs e)
         {
-            CreateParameters();
+            ActionImageChanged();
         }
 
         private void OnFoldersUpdated(object sender, EventArgs e)
         {
-            CreateParameters();
+            UpdateDisplayName();
+            ActionImageChanged();
         }
 
-        private void CreateParameters()
+        private void UpdateDisplayName()
         {
-            RemoveAllParameters();
+            var folder = GetAssignedFolder();
+            if (folder != null)
+                DisplayName = folder.Name;
+            else
+                DisplayName = "Custom Folder 5 (Empty)";
+        }
 
-            // Add a parameter for each configured folder
-            // User can select which folder this instance should display
-            foreach (var folder in _plugin.Folders)
-            {
-                AddParameter($"folder_{folder.Id}", folder.Name, "Folders");
-            }
-
-            // If no folders exist, add a dummy parameter
-            if (_plugin.Folders.Count == 0)
-            {
-                AddParameter("no_folders", "No folders configured", "Info");
-            }
+        private FolderConfiguration GetAssignedFolder()
+        {
+            if (_plugin.Folders.Count > SLOT_INDEX)
+                return _plugin.Folders[SLOT_INDEX];
+            return null;
         }
 
         public override IEnumerable<string> GetButtonPressActionNames()
         {
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
-            // If no folder is active, show folder selection menu
-            if (string.IsNullOrEmpty(_activeFolderId))
-            {
-                foreach (var folder in _plugin.Folders)
-                {
-                    actions.Add(CreateCommandName($"selectfolder_{folder.Id}"));
-                }
+            var folder = GetAssignedFolder();
+            if (folder == null)
                 return actions;
-            }
 
-            // Show buttons from the active folder
-            var activeFolder = _plugin.Folders.FirstOrDefault(f => f.Id == _activeFolderId);
-            if (activeFolder == null)
-            {
-                _activeFolderId = null; // Reset if folder not found
-                return actions;
-            }
-
-            foreach (var button in activeFolder.Buttons)
+            foreach (var button in folder.Buttons)
             {
                 string commandName = null;
 
@@ -132,7 +116,7 @@ namespace ShellyLoupedeckPlugin.Actions
         public override string GetCommandDisplayName(string actionParameter, PluginImageSize imageSize)
         {
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
-                return string.IsNullOrEmpty(_activeFolderId) ? "Back" : "Back to Menu";
+                return "Back";
 
             var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
             if (parts.Length < 2) return "?";
@@ -140,30 +124,17 @@ namespace ShellyLoupedeckPlugin.Actions
             var commandId = parts[1];
             var cmdParts = commandId.Split('_');
 
-            // Handle folder selection buttons
-            if (cmdParts[0] == "selectfolder" && cmdParts.Length >= 2)
+            var folder = GetAssignedFolder();
+            if (folder != null)
             {
-                var folderId = cmdParts[1];
-                var folder = _plugin.Folders.FirstOrDefault(f => f.Id == folderId);
-                return folder?.Name ?? "Folder";
+                var targetId = cmdParts.Length >= 2 ? cmdParts[1] : null;
+                var parameter = cmdParts.Length >= 3 ? cmdParts[2] : null;
+                var button = folder.Buttons.FirstOrDefault(b => b.TargetId == targetId && b.Parameter == parameter);
+
+                if (button != null && !string.IsNullOrEmpty(button.CustomLabel))
+                    return button.CustomLabel;
             }
 
-            // Find button configuration for custom labels
-            if (!string.IsNullOrEmpty(_activeFolderId))
-            {
-                var activeFolder = _plugin.Folders.FirstOrDefault(f => f.Id == _activeFolderId);
-                if (activeFolder != null)
-                {
-                    var targetId = cmdParts.Length >= 2 ? cmdParts[1] : null;
-                    var parameter = cmdParts.Length >= 3 ? cmdParts[2] : null;
-                    var button = activeFolder.Buttons.FirstOrDefault(b => b.TargetId == targetId && b.Parameter == parameter);
-
-                    if (button != null && !string.IsNullOrEmpty(button.CustomLabel))
-                        return button.CustomLabel;
-                }
-            }
-
-            // Default display names
             if (cmdParts.Length < 2) return commandId;
 
             switch (cmdParts[0])
@@ -215,19 +186,6 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
-                    return builder.ToImage();
-                }
-
-                // Handle folder selection buttons
-                if (cmdParts[0] == "selectfolder" && cmdParts.Length >= 2)
-                {
-                    var folderId = cmdParts[1];
-                    var folder = _plugin.Folders.FirstOrDefault(f => f.Id == folderId);
-                    if (folder != null)
-                    {
-                        builder.Clear(new BitmapColor(50, 100, 150));
-                        builder.DrawText(folder.Name, BitmapColor.White, 14);
-                    }
                     return builder.ToImage();
                 }
 
