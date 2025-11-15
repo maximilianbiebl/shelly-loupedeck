@@ -66,12 +66,12 @@ namespace ShellyLoupedeckPlugin.Actions
             return base.Activate();
         }
 
-        public override void Deactivate()
+        public override bool Deactivate()
         {
             // Stop refresh timer when folder is closed
             _refreshTimer?.Dispose();
             _refreshTimer = null;
-            base.Deactivate();
+            return base.Deactivate();
         }
 
         public override bool Unload()
