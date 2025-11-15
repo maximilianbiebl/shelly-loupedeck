@@ -731,14 +731,14 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             // Extract command ID from full action parameter
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2)
+            var actionParts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
+            if (actionParts.Length < 2)
             {
                 DebugLogger.Log($"[CustomFolder4] Failed to parse action parameter");
                 return;
             }
 
-            var commandId = parts[1];
+            var commandId = actionParts[1];
             DebugLogger.Log($"[CustomFolder4] Command ID: {commandId}");
 
             var cmdParts = commandId.Split('_');
