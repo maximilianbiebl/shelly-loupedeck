@@ -38,6 +38,14 @@ namespace ShellyLoupedeckPlugin.Actions
             return true;
         }
 
+        protected override void Activate()
+        {
+            // Reset to main menu when folder is opened
+            DebugLogger.Log("[CustomFolder4] Folder activated, resetting to main menu");
+            _currentSubmenu = null;
+            base.Activate();
+        }
+
         public override bool Unload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
@@ -73,7 +81,17 @@ namespace ShellyLoupedeckPlugin.Actions
 
         public override IEnumerable<string> GetButtonPressActionNames()
         {
-            var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
+            var actions = new List<string>();
+
+            // Add back button: custom one for submenus, SDK one for main menu
+            if (!string.IsNullOrEmpty(_currentSubmenu))
+            {
+                actions.Add(CreateCommandName("back"));
+            }
+            else
+            {
+                actions.Add(PluginDynamicFolder.NavigateUpActionName);
+            }
 
             if (!string.IsNullOrEmpty(_currentSubmenu))
             {
@@ -227,6 +245,10 @@ namespace ShellyLoupedeckPlugin.Actions
                 return "Back";
 
             var cmdParts = actionParameter.Split('_');
+
+            // Custom back button
+            if (cmdParts[0] == "back")
+                return "Back";
 
             // Device menu options
             if (cmdParts[0] == "devicesetting" && cmdParts.Length >= 3)
@@ -386,6 +408,14 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
 
                 var cmdParts = actionParameter.Split('_');
+
+                // Custom back button
+                if (cmdParts[0] == "back")
+                {
+                    builder.DrawText("←", BitmapColor.White, 40);
+                    return builder.ToImage();
+                }
+
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -687,10 +717,20 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"[CustomFolder4] RunCommand called: {actionParameter}");
             DebugLogger.Log($"[CustomFolder4] Current submenu: {_currentSubmenu ?? "null"}");
 
+            // SDK Navigate Up - only exits folder (used on main menu)
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
             {
-                DebugLogger.Log("[CustomFolder4] Navigate Up pressed");
-                // Back button: go up one level
+                DebugLogger.Log("[CustomFolder4] SDK Navigate Up pressed (exit folder)");
+                return;
+            }
+
+            var cmdParts = actionParameter.Split('_');
+            DebugLogger.Log($"[CustomFolder4] Command parts: {string.Join(", ", cmdParts)}");
+
+            // Custom back button - goes up one level
+            if (cmdParts[0] == "back")
+            {
+                DebugLogger.Log("[CustomFolder4] Custom Back pressed");
                 if (!string.IsNullOrEmpty(_currentSubmenu))
                 {
                     var parts = _currentSubmenu.Split('_');
@@ -711,12 +751,12 @@ namespace ShellyLoupedeckPlugin.Actions
                         _currentSubmenu = null;
                     }
 
-                    DebugLogger.Log($"[CustomFolder4] After Navigate Up, submenu: {_currentSubmenu ?? "null"}");
+                    DebugLogger.Log($"[CustomFolder4] After Back, submenu: {_currentSubmenu ?? "null"}");
 
                     // Force folder refresh
                     try
                     {
-                        DebugLogger.Log($"[CustomFolder4] Calling ButtonActionNamesChanged() after navigate up");
+                        DebugLogger.Log($"[CustomFolder4] Calling ButtonActionNamesChanged() after back");
                         ButtonActionNamesChanged();
                     }
                     catch (Exception ex)
@@ -727,8 +767,6 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            var cmdParts = actionParameter.Split('_');
-            DebugLogger.Log($"[CustomFolder4] Command parts: {string.Join(", ", cmdParts)}");
             if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();
