@@ -712,6 +712,17 @@ namespace ShellyLoupedeckPlugin.Actions
                     }
 
                     DebugLogger.Log($"[CustomFolder1] After Navigate Up, submenu: {_currentSubmenu ?? "null"}");
+
+                    // Force folder refresh
+                    try
+                    {
+                        DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged() after navigate up");
+                        ButtonActionNamesChanged();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
+                    }
                 }
                 return;
             }
@@ -729,14 +740,15 @@ namespace ShellyLoupedeckPlugin.Actions
                 _currentSubmenu = $"device_{cmdParts[1]}";
                 DebugLogger.Log($"[CustomFolder1] Set submenu to: {_currentSubmenu}");
 
-                // Force folder refresh by triggering action image changed
+                // Force folder refresh by notifying button list changed
                 try
                 {
-                    ActionImageChanged();
+                    DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                    DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
                 }
 
                 return;
@@ -754,11 +766,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 // Force folder refresh
                 try
                 {
-                    ActionImageChanged();
+                    DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                    DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
                 }
 
                 return;
@@ -776,11 +789,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 // Force folder refresh
                 try
                 {
-                    ActionImageChanged();
+                    DebugLogger.Log($"[CustomFolder1] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.Log($"[CustomFolder1] ActionImageChanged failed: {ex.Message}");
+                    DebugLogger.Log($"[CustomFolder1] ButtonActionNamesChanged failed: {ex.Message}");
                 }
 
                 return;

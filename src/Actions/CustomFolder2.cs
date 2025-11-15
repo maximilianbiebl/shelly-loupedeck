@@ -712,6 +712,17 @@ namespace ShellyLoupedeckPlugin.Actions
                     }
 
                     DebugLogger.Log($"[CustomFolder2] After Navigate Up, submenu: {_currentSubmenu ?? "null"}");
+
+                    // Force folder refresh
+                    try
+                    {
+                        DebugLogger.Log($"[CustomFolder2] Calling ButtonActionNamesChanged() after navigate up");
+                        ButtonActionNamesChanged();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[CustomFolder2] ButtonActionNamesChanged failed: {ex.Message}");
+                    }
                 }
                 return;
             }
@@ -728,7 +739,18 @@ namespace ShellyLoupedeckPlugin.Actions
                 DebugLogger.Log($"[CustomFolder2] Opening device settings for: {cmdParts[1]}");
                 _currentSubmenu = $"device_{cmdParts[1]}";
                 DebugLogger.Log($"[CustomFolder2] Set submenu to: {_currentSubmenu}");
-                OnDevicesUpdated(this, EventArgs.Empty);
+
+                // Force folder refresh by notifying button list changed
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder2] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder2] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
@@ -737,8 +759,21 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var settingType = cmdParts[1];
                 var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder2] Opening {settingType} menu for: {deviceId}");
                 _currentSubmenu = $"{settingType}_{deviceId}";
-                OnDevicesUpdated(this, EventArgs.Empty);
+                DebugLogger.Log($"[CustomFolder2] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder2] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder2] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
@@ -747,8 +782,21 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 var channel = cmdParts[1];
                 var deviceId = cmdParts[2];
+                DebugLogger.Log($"[CustomFolder2] Opening color {channel} menu for: {deviceId}");
                 _currentSubmenu = $"color_{channel}_{deviceId}";
-                OnDevicesUpdated(this, EventArgs.Empty);
+                DebugLogger.Log($"[CustomFolder2] Set submenu to: {_currentSubmenu}");
+
+                // Force folder refresh
+                try
+                {
+                    DebugLogger.Log($"[CustomFolder2] Calling ButtonActionNamesChanged()");
+                    ButtonActionNamesChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CustomFolder2] ButtonActionNamesChanged failed: {ex.Message}");
+                }
+
                 return;
             }
 
