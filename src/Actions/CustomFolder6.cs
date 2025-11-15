@@ -226,7 +226,12 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return "Back";
 
-            var cmdParts = actionParameter.Split('_');
+            // Extract command ID from full action parameter
+            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
+            if (parts.Length < 2) return actionParameter;
+
+            var commandId = parts[1];
+            var cmdParts = commandId.Split('_');
 
             // Device menu options
             if (cmdParts[0] == "devicesetting" && cmdParts.Length >= 3)
@@ -385,7 +390,16 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                var cmdParts = actionParameter.Split('_');
+                // Extract command ID from full action parameter
+                var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
+                if (parts.Length < 2)
+                {
+                    builder.DrawText("?", BitmapColor.White);
+                    return builder.ToImage();
+                }
+
+                var commandId = parts[1];
+                var cmdParts = commandId.Split('_');
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -684,8 +698,12 @@ namespace ShellyLoupedeckPlugin.Actions
 
         public override void RunCommand(string actionParameter)
         {
+            DebugLogger.Log($"[CustomFolder6] RunCommand called: {actionParameter}");
+            DebugLogger.Log($"[CustomFolder6] Current submenu: {_currentSubmenu ?? "null"}");
+
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
             {
+                DebugLogger.Log("[CustomFolder6] Navigate Up pressed");
                 // Back button: go up one level
                 if (!string.IsNullOrEmpty(_currentSubmenu))
                 {
@@ -707,13 +725,24 @@ namespace ShellyLoupedeckPlugin.Actions
                         _currentSubmenu = null;
                     }
 
-                    // Trigger refresh
-                    OnDevicesUpdated(this, EventArgs.Empty);
+                    DebugLogger.Log($"[CustomFolder6] After Navigate Up, submenu: {_currentSubmenu ?? "null"}");
                 }
                 return;
             }
 
-            var cmdParts = actionParameter.Split('_');
+            // Extract command ID from full action parameter
+            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
+            if (parts.Length < 2)
+            {
+                DebugLogger.Log($"[CustomFolder6] Failed to parse action parameter");
+                return;
+            }
+
+            var commandId = parts[1];
+            DebugLogger.Log($"[CustomFolder6] Command ID: {commandId}");
+
+            var cmdParts = commandId.Split('_');
+            DebugLogger.Log($"[CustomFolder6] Command parts: {string.Join(", ", cmdParts)}");
             if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();
@@ -721,7 +750,9 @@ namespace ShellyLoupedeckPlugin.Actions
             // Open device settings
             if (cmdParts[0] == "opendevice" && cmdParts.Length >= 2)
             {
+                DebugLogger.Log($"[CustomFolder6] Opening device settings for: {cmdParts[1]}");
                 _currentSubmenu = $"device_{cmdParts[1]}";
+                DebugLogger.Log($"[CustomFolder6] Set submenu to: {_currentSubmenu}");
                 OnDevicesUpdated(this, EventArgs.Empty);
                 return;
             }
