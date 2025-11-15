@@ -116,7 +116,6 @@ namespace ShellyLoupedeckPlugin.Api
                 var deviceNames = new Dictionary<string, string>();
                 try
                 {
-                    DebugLogger.Log($"Shelly API: Step 1 - Trying to get device names from /device/list");
                     var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
                     var listResponse = await _httpClient.GetAsync(listUrl);
 
@@ -127,20 +126,17 @@ namespace ShellyLoupedeckPlugin.Api
 
                         if (deviceListResult?.Data?.Devices != null)
                         {
-                            DebugLogger.Log($"Shelly API: Found {deviceListResult.Data.Devices.Count} devices in /device/list");
                             foreach (var deviceInfo in deviceListResult.Data.Devices)
                             {
                                 if (!string.IsNullOrWhiteSpace(deviceInfo.Name))
                                 {
                                     deviceNames[deviceInfo.Id] = deviceInfo.Name;
-                                    DebugLogger.Log($"  Device {deviceInfo.Id}: Name = '{deviceInfo.Name}'");
                                 }
                             }
                         }
                     }
                     else
                     {
-                        DebugLogger.Log($"Shelly API: /device/list returned {listResponse.StatusCode}, skipping name lookup");
                     }
                 }
                 catch (Exception ex)
@@ -149,23 +145,18 @@ namespace ShellyLoupedeckPlugin.Api
                 }
 
                 // Step 2: Get device statuses from /device/all_status
-                DebugLogger.Log($"Shelly API: Step 2 - Getting device statuses from /device/all_status");
                 var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
                 var response = await _httpClient.GetAsync(url);
-                DebugLogger.Log($"Shelly API: Response status {response.StatusCode}");
 
                 response.EnsureSuccessStatusCode();
 
                 var content = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"Shelly API: Response content length: {content.Length}");
 
                 var result = JsonConvert.DeserializeObject<AllStatusResponse>(content);
 
-                DebugLogger.Log($"Shelly API: Deserialized result - IsOk: {result?.IsOk}, Data is null: {result?.Data == null}, DevicesStatus is null: {result?.Data?.DevicesStatus == null}");
 
                 if (result != null && result.Data != null && result.Data.DevicesStatus != null)
                 {
-                    DebugLogger.Log($"Shelly API: Found {result.Data.DevicesStatus.Count} devices in dictionary");
 
                     // Convert dictionary to list and set IDs from keys
                     var devicesList = new List<ShellyDevice>();
@@ -178,12 +169,10 @@ namespace ShellyLoupedeckPlugin.Api
                         if (deviceNames.ContainsKey(device.Id))
                         {
                             device.Name = deviceNames[device.Id];
-                            DebugLogger.Log($"  Device {device.Id}: Using name from /device/list: '{device.Name}'");
                         }
                         else if (device.Settings != null && !string.IsNullOrWhiteSpace(device.Settings.Name))
                         {
                             device.Name = device.Settings.Name;
-                            DebugLogger.Log($"  Device {device.Id}: Using Settings.Name: {device.Name}");
                         }
                         else if (string.IsNullOrWhiteSpace(device.Name))
                         {
@@ -193,17 +182,14 @@ namespace ShellyLoupedeckPlugin.Api
                                 var deviceModelName = device.GetInfo.FwInfo.Device;
                                 var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
                                 device.Name = $"{deviceModelName} ({shortMac})";
-                                DebugLogger.Log($"  Device {device.Id}: Generated name from model: {device.Name}");
                             }
                             else
                             {
                                 device.Name = device.Id;
-                                DebugLogger.Log($"  Device {device.Id}: Using MAC as name: {device.Name}");
                             }
                         }
                         else
                         {
-                            DebugLogger.Log($"  Device {device.Id}: Using existing name: {device.Name}");
                         }
 
                         // Create Status object for backward compatibility
@@ -224,21 +210,16 @@ namespace ShellyLoupedeckPlugin.Api
                                     new RelayStatus { IsOn = device.Switch0.Output }
                                 };
                                 device.Status.Relays = device.Relays;
-                                DebugLogger.Log($"    -> Converted Gen3 Switch0 to Relay (IsOn={device.Switch0.Output})");
                             }
                         }
 
                         devicesList.Add(device);
                         var deviceType = device.GetDeviceType();
-                        DebugLogger.Log($"Shelly API: Added device {device.Id} ({device.Name}) - Type: {deviceType}");
-                        DebugLogger.Log($"  - Has GetInfo: {device.GetInfo != null}, Has Lights: {device.Lights != null && device.Lights.Count > 0}, Has Relays: {device.Relays != null && device.Relays.Count > 0}, Has Thermostats: {device.Thermostats != null && device.Thermostats.Count > 0}");
                     }
 
-                    DebugLogger.Log($"Shelly API: Returning {devicesList.Count} devices");
                     return devicesList;
                 }
 
-                DebugLogger.Log($"Shelly API: No devices found (null response data)");
                 System.Windows.Forms.MessageBox.Show(
                     $"API Response received but no devices found.\n\nResponse preview:\n{content.Substring(0, Math.Min(300, content.Length))}\n\nCheck log file at:\n%LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
                     "Shelly API - No Devices",
@@ -296,7 +277,6 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/relay/control";
 
-                DebugLogger.Log($"  SetRelayStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
@@ -307,7 +287,6 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("turn", turn)
                 }), "SetRelayStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -331,7 +310,6 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/relay/control";
 
-                DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
@@ -342,7 +320,6 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("turn", turn)
                 }), "SetGen3SwitchStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -366,7 +343,6 @@ namespace ShellyLoupedeckPlugin.Api
                 var turn = turnOn ? "on" : "off";
                 var url = $"{_serverUrl}/device/light/control";
 
-                DebugLogger.Log($"  SetLightStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
@@ -377,7 +353,6 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("turn", turn)
                 }), "SetLightStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -401,7 +376,6 @@ namespace ShellyLoupedeckPlugin.Api
                 var url = $"{_serverUrl}/device/light/control";
 
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
-                DebugLogger.Log($"  SetLightBrightnessAsync: URL = {url}, Body = id={deviceId}&turn=on&brightness={brightness}{channelStr}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () =>
@@ -422,7 +396,6 @@ namespace ShellyLoupedeckPlugin.Api
                     return new FormUrlEncodedContent(formParams);
                 }, "SetLightBrightnessAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetLightBrightnessAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -452,19 +425,16 @@ namespace ShellyLoupedeckPlugin.Api
                 if (red > 0 || green > 0 || blue > 0)
                 {
                     mode = "color";
-                    DebugLogger.Log($"  SetLightColorAsync: Detected COLOR mode (R={red}, G={green}, B={blue}), adding mode=color parameter");
                 }
                 else if (red == 0 && green == 0 && blue == 0 && white > 0)
                 {
                     mode = "white";
-                    DebugLogger.Log($"  SetLightColorAsync: Detected WHITE mode (W={white}), adding mode=white parameter");
                 }
 
                 var channelStr = channel.HasValue ? $"&channel={channel.Value}" : "";
                 var modeStr = mode != null ? $"&mode={mode}" : "";
                 var tempStr = temperature.HasValue && mode == "white" ? $"&temp={temperature.Value}" : "";
                 var brightnessStr = brightness.HasValue ? (mode == "color" ? $"&gain={brightness.Value}" : $"&brightness={brightness.Value}") : "";
-                DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}{brightnessStr}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () =>
@@ -515,7 +485,6 @@ namespace ShellyLoupedeckPlugin.Api
                     return new FormUrlEncodedContent(formParams);
                 }, "SetLightColorAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetLightColorAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -538,7 +507,6 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var url = $"{_serverUrl}/device/thermostat/control";
 
-                DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature.ToString(CultureInfo.InvariantCulture)}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
@@ -548,7 +516,6 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("temp", temperature.ToString(CultureInfo.InvariantCulture))
                 }), "SetThermostatTemperatureAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetThermostatTemperatureAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
@@ -571,7 +538,6 @@ namespace ShellyLoupedeckPlugin.Api
             {
                 var url = $"{_serverUrl}/device/thermostat/boost";
 
-                DebugLogger.Log($"  SetThermostatBoostAsync: URL = {url}, Body = id={deviceId}&boost_minutes={minutes}");
 
                 // Create content factory for retry mechanism
                 var response = await PostWithRetryAsync(url, () => new FormUrlEncodedContent(new[]
@@ -581,7 +547,6 @@ namespace ShellyLoupedeckPlugin.Api
                     new KeyValuePair<string, string>("boost_minutes", minutes.ToString())
                 }), "SetThermostatBoostAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
-                DebugLogger.Log($"  SetThermostatBoostAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                 response.EnsureSuccessStatusCode();
                 return true;
