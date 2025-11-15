@@ -215,7 +215,12 @@ namespace ShellyLoupedeckPlugin.UI
             if (selector.ShowDialog() == DialogResult.OK && selector.SelectedIndex >= 0)
             {
                 var device = devices[selector.SelectedIndex];
-                _folder.Buttons.Add(new FolderButton(FolderButtonType.DeviceToggle, device.Id, "ch0", device.Name));
+
+                // Ask for custom label
+                string customLabel = PromptForInput("Button Label", $"Enter label for '{device.Name}':", device.Name);
+                if (customLabel == null) return; // User cancelled
+
+                _folder.Buttons.Add(new FolderButton(FolderButtonType.DeviceToggle, device.Id, "ch0", customLabel));
                 LoadButtons();
             }
         }
@@ -376,6 +381,39 @@ namespace ShellyLoupedeckPlugin.UI
 
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private string PromptForInput(string title, string prompt, string defaultValue)
+        {
+            Form inputForm = new Form
+            {
+                Width = 400,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            Label textLabel = new Label { Left = 10, Top = 15, Width = 360, Text = prompt };
+            TextBox textBox = new TextBox { Left = 10, Top = 40, Width = 360, Text = defaultValue };
+            Button okButton = new Button { Text = "OK", Left = 200, Width = 80, Top = 75, DialogResult = DialogResult.OK };
+            Button cancelButton = new Button { Text = "Cancel", Left = 290, Width = 80, Top = 75, DialogResult = DialogResult.Cancel };
+
+            okButton.Click += (sender, e) => { inputForm.Close(); };
+            cancelButton.Click += (sender, e) => { inputForm.Close(); };
+
+            inputForm.Controls.Add(textLabel);
+            inputForm.Controls.Add(textBox);
+            inputForm.Controls.Add(okButton);
+            inputForm.Controls.Add(cancelButton);
+            inputForm.AcceptButton = okButton;
+            inputForm.CancelButton = cancelButton;
+
+            textBox.SelectAll();
+
+            return inputForm.ShowDialog() == DialogResult.OK ? textBox.Text.Trim() : null;
         }
     }
 
