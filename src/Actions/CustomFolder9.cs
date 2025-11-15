@@ -121,11 +121,8 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return "Back";
 
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2) return "?";
-
-            var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
+            // actionParameter is already the command name (e.g. "groupcolor_id_red")
+            var cmdParts = actionParameter.Split('_');
 
             // Find button configuration for custom labels
             var folder = GetAssignedFolder();
@@ -140,7 +137,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
 
             // Default display names
-            if (cmdParts.Length < 2) return commandId;
+            if (cmdParts.Length < 2) return actionParameter;
 
             switch (cmdParts[0])
             {
@@ -180,7 +177,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
             }
 
-            return commandId;
+            return actionParameter;
         }
 
         public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
@@ -195,15 +192,8 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-                if (parts.Length < 2)
-                {
-                    builder.DrawText("?", BitmapColor.White);
-                    return builder.ToImage();
-                }
-
-                var commandId = parts[1];
-                var cmdParts = commandId.Split('_');
+            // actionParameter is already the command name (e.g. "groupcolor_id_red")
+            var cmdParts = actionParameter.Split('_');
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -302,11 +292,8 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return;
 
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2) return;
-
-            var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
+            // actionParameter is already the command name (e.g. "groupcolor_id_red")
+            var cmdParts = actionParameter.Split('_');
             if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();

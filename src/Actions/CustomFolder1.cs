@@ -72,17 +72,11 @@ namespace ShellyLoupedeckPlugin.Actions
 
         public override IEnumerable<string> GetButtonPressActionNames()
         {
-            DebugLogger.Log($"CustomFolder1: GetButtonPressActionNames called");
             var actions = new List<string> { PluginDynamicFolder.NavigateUpActionName };
 
             var folder = GetAssignedFolder();
             if (folder == null)
-            {
-                DebugLogger.Log($"CustomFolder1: No folder assigned to slot {SLOT_INDEX}");
                 return actions;
-            }
-
-            DebugLogger.Log($"CustomFolder1: Folder '{folder.Name}' has {folder.Buttons.Count} buttons");
 
             foreach (var button in folder.Buttons)
             {
@@ -116,18 +110,9 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
 
                 if (commandName != null)
-                {
-                    var fullActionName = CreateCommandName(commandName);
-                    DebugLogger.Log($"CustomFolder1: Adding action: {commandName} -> {fullActionName}");
-                    actions.Add(fullActionName);
-                }
-                else
-                {
-                    DebugLogger.Log($"CustomFolder1: WARNING - Button type {button.Type} generated null commandName");
-                }
+                    actions.Add(CreateCommandName(commandName));
             }
 
-            DebugLogger.Log($"CustomFolder1: Returning {actions.Count} total actions (including NavigateUp)");
             return actions;
         }
 
@@ -136,15 +121,8 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return "Back";
 
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2)
-            {
-                DebugLogger.Log($"CustomFolder1: GetCommandDisplayName - actionParameter split failed. Param: '{actionParameter}', TypeName: '{GetType().FullName}'");
-                return "?";
-            }
-
-            var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
+            // actionParameter is already the command name (e.g. "groupcolor_id_red")
+            var cmdParts = actionParameter.Split('_');
 
             // Find button configuration for custom labels
             var folder = GetAssignedFolder();
@@ -199,7 +177,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     return cmdParts.Length >= 2 ? cmdParts[1] : "Action";
             }
 
-            return commandId;
+            return actionParameter;
         }
 
         public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
@@ -214,15 +192,8 @@ namespace ShellyLoupedeckPlugin.Actions
                     return builder.ToImage();
                 }
 
-                var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-                if (parts.Length < 2)
-                {
-                    builder.DrawText("?", BitmapColor.White);
-                    return builder.ToImage();
-                }
-
-                var commandId = parts[1];
-                var cmdParts = commandId.Split('_');
+                // actionParameter is already the command name (e.g. "groupcolor_id_red")
+                var cmdParts = actionParameter.Split('_');
                 if (cmdParts.Length < 2)
                 {
                     builder.DrawText("?", BitmapColor.White);
@@ -321,11 +292,8 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter == PluginDynamicFolder.NavigateUpActionName)
                 return;
 
-            var parts = actionParameter.Split(new[] { GetType().FullName }, StringSplitOptions.None);
-            if (parts.Length < 2) return;
-
-            var commandId = parts[1];
-            var cmdParts = commandId.Split('_');
+            // actionParameter is already the command name (e.g. "groupcolor_id_red")
+            var cmdParts = actionParameter.Split('_');
             if (cmdParts.Length < 2) return;
 
             _plugin.RecordUserAction();
