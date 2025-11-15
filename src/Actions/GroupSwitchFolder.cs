@@ -6,18 +6,18 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
-    public class GroupSwitchFolder : PluginDynamicFolder
+    public class GroupSwitchFolder : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
 
-        public GroupSwitchFolder()
+        public GroupSwitchFolder() : base()
         {
             DisplayName = "Group Switches";
             Description = "Switch folder for groups - toggle individual devices";
             GroupName = "Group Folders";
         }
 
-        public override bool Load()
+        protected override bool OnLoad()
         {
             _plugin = (ShellyLoupedeckPlugin)base.Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
@@ -25,15 +25,15 @@ namespace ShellyLoupedeckPlugin.Actions
 
             CreateParameters();
 
-            return base.Load();
+            return base.OnLoad();
         }
 
-        public override bool Unload()
+        protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
 
-            return base.Unload();
+            return base.OnUnload();
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
@@ -50,16 +50,12 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             RemoveAllParameters();
 
-            // Add a folder for each Switch group
+            // Add switches for each Switch group
             foreach (var group in _plugin.Groups)
             {
                 if (group.Purpose == GroupPurpose.Switch)
                 {
-                    // Create a folder for this group
-                    var folderId = $"group_{group.Id}";
-                    AddParameter(folderId, $"{group.Name}", group.Name);
-
-                    // Add device switches inside this folder
+                    // Add device switches for this group
                     foreach (var deviceParam in group.DeviceIds)
                     {
                         // Parse device ID and channel
@@ -82,29 +78,22 @@ namespace ShellyLoupedeckPlugin.Actions
                         var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
                         var deviceName = device?.Name ?? deviceId;
 
-                        var switchParamId = $"{folderId}_{deviceParam}";
-                        AddParameter(switchParamId, $"{deviceName}{channelSuffix}", group.Name, folderId);
+                        var switchParamId = $"group_{group.Id}_{deviceParam}";
+                        AddParameter(switchParamId, $"{group.Name} - {deviceName}{channelSuffix}", group.Name);
                     }
                 }
             }
 
-            DebugLogger.Log($"GroupSwitchFolder: Created {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Switch)} folder parameters");
+            DebugLogger.Log($"GroupSwitchFolder: Created parameters for {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Switch)} groups");
         }
 
-        public override async void RunCommand(string actionParameter)
+        protected override async void RunCommand(string actionParameter)
         {
             DebugLogger.Log($"GroupSwitchFolder: RunCommand called with parameter: {actionParameter}");
 
             if (string.IsNullOrEmpty(actionParameter))
             {
                 DebugLogger.Log("  -> Parameter is null or empty, returning");
-                return;
-            }
-
-            // Check if this is a folder click (just group_{groupId})
-            if (actionParameter.StartsWith("group_") && actionParameter.Split('_').Length == 2)
-            {
-                DebugLogger.Log("  -> Folder opened, no action needed");
                 return;
             }
 
@@ -170,13 +159,29 @@ namespace ShellyLoupedeckPlugin.Actions
                 return;
             }
 
-            bool currentState = device.GetDeviceState(channel);
-            bool newState = !currentState;
+            // Get current state
+            bool currentState = false;
+            var deviceType = device.GetDeviceType();
 
+            if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+            {
+                if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
+                {
+                    currentState = device.Status.Lights[channel].IsOn;
+                }
+            }
+            else
+            {
+                if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
+                {
+                    currentState = device.Status.Relays[channel].IsOn;
+                }
+            }
+
+            bool newState = !currentState;
             DebugLogger.Log($"    -> Current state: {currentState}, New state: {newState}");
 
             // Toggle the device based on its type
-            var deviceType = device.GetDeviceType();
             bool success = false;
 
             switch (deviceType)
@@ -184,10 +189,6 @@ namespace ShellyLoupedeckPlugin.Actions
                 case ShellyDeviceType.Switch:
                 case ShellyDeviceType.ShellyPlus2PM:
                     success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, channel, newState);
-                    break;
-
-                case ShellyDeviceType.ShellyPlusPlugS:
-                    success = await _plugin.ApiClient.SetGen3SwitchStateAsync(deviceId, channel, newState);
                     break;
 
                 case ShellyDeviceType.RGBW:
@@ -222,26 +223,14 @@ namespace ShellyLoupedeckPlugin.Actions
             }
         }
 
-        public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
-            // If this is a folder (just group_{groupId}), show a folder icon
-            if (actionParameter.StartsWith("group_") && actionParameter.Split('_').Length == 2)
-            {
-                using (var bitmapBuilder = new BitmapBuilder(imageSize))
-                {
-                    bitmapBuilder.Clear(new BitmapColor(40, 40, 50));
-                    bitmapBuilder.DrawText("📁");
-                    return bitmapBuilder.ToImage();
-                }
-            }
-
-            // For device switches, show ON/OFF state
+            // Extract device param from: group_{groupId}_{deviceParam}
             if (!actionParameter.StartsWith("group_"))
             {
                 return null;
             }
 
-            // Extract device param
             var withoutPrefix = actionParameter.Substring(6); // Remove "group_"
             var firstUnderscore = withoutPrefix.IndexOf('_');
 
@@ -270,7 +259,24 @@ namespace ShellyLoupedeckPlugin.Actions
                 return null;
             }
 
-            bool isOn = device.GetDeviceState(channel);
+            // Get device state
+            bool isOn = false;
+            var deviceType = device.GetDeviceType();
+
+            if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
+            {
+                if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
+                {
+                    isOn = device.Status.Lights[channel].IsOn;
+                }
+            }
+            else
+            {
+                if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
+                {
+                    isOn = device.Status.Relays[channel].IsOn;
+                }
+            }
 
             using (var bitmapBuilder = new BitmapBuilder(imageSize))
             {

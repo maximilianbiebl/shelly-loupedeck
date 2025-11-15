@@ -6,7 +6,7 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
-    public class GroupColorFolder : PluginDynamicFolder
+    public class GroupColorFolder : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, (int R, int G, int B, int W)> _presetColors = new Dictionary<string, (int, int, int, int)>
@@ -30,14 +30,14 @@ namespace ShellyLoupedeckPlugin.Actions
             { "cool_white", 6500 }    // Cool white (like daylight)
         };
 
-        public GroupColorFolder()
+        public GroupColorFolder() : base()
         {
             DisplayName = "Group Colors";
             Description = "Color folder for groups";
             GroupName = "Group Folders";
         }
 
-        public override bool Load()
+        protected override bool OnLoad()
         {
             _plugin = (ShellyLoupedeckPlugin)base.Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
@@ -45,15 +45,15 @@ namespace ShellyLoupedeckPlugin.Actions
 
             CreateParameters();
 
-            return base.Load();
+            return base.OnLoad();
         }
 
-        public override bool Unload()
+        protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
 
-            return base.Unload();
+            return base.OnUnload();
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
@@ -70,46 +70,31 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             RemoveAllParameters();
 
-            // Add a folder for each Color group
+            // Add color buttons for each Color/Brightness group
             foreach (var group in _plugin.Groups)
             {
                 if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
                 {
-                    // Create a folder for this group
-                    var folderId = $"group_{group.Id}";
-                    AddParameter(folderId, $"{group.Name}", group.Name);
-
-                    // Add color buttons inside this folder
+                    // Add color buttons for this group
                     foreach (var color in _presetColors)
                     {
-                        var colorParamId = $"{folderId}_{color.Key}";
+                        var colorParamId = $"group_{group.Id}_{color.Key}";
                         var colorName = color.Key.Replace("_", " ");
-                        AddParameter(colorParamId, colorName, group.Name, folderId);
+                        AddParameter(colorParamId, $"{group.Name} - {colorName}", group.Name);
                     }
                 }
             }
 
-            DebugLogger.Log($"GroupColorFolder: Created {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness)} folder parameters");
+            DebugLogger.Log($"GroupColorFolder: Created parameters for {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Color || g.Purpose == GroupPurpose.Brightness)} groups");
         }
 
-        public override async void RunCommand(string actionParameter)
+        protected override async void RunCommand(string actionParameter)
         {
             DebugLogger.Log($"GroupColorFolder: RunCommand called with parameter: {actionParameter}");
 
             if (string.IsNullOrEmpty(actionParameter))
             {
                 DebugLogger.Log("  -> Parameter is null or empty, returning");
-                return;
-            }
-
-            // Check if this is a folder click (just open, don't execute)
-            if (actionParameter.StartsWith("group_") && !actionParameter.Contains("_red") &&
-                !actionParameter.Contains("_green") && !actionParameter.Contains("_blue") &&
-                !actionParameter.Contains("_white") && !actionParameter.Contains("_yellow") &&
-                !actionParameter.Contains("_cyan") && !actionParameter.Contains("_magenta") &&
-                !actionParameter.Contains("_warm_white") && !actionParameter.Contains("_cool_white"))
-            {
-                DebugLogger.Log("  -> Folder opened, no action needed");
                 return;
             }
 
@@ -204,24 +189,9 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"  -> Color change complete for group '{group.Name}'");
         }
 
-        public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
-            // If this is a folder (group), show a folder icon
-            if (actionParameter.StartsWith("group_") && !actionParameter.Contains("_red") &&
-                !actionParameter.Contains("_green") && !actionParameter.Contains("_blue") &&
-                !actionParameter.Contains("_white") && !actionParameter.Contains("_yellow") &&
-                !actionParameter.Contains("_cyan") && !actionParameter.Contains("_magenta") &&
-                !actionParameter.Contains("_warm_white") && !actionParameter.Contains("_cool_white"))
-            {
-                using (var bitmapBuilder = new BitmapBuilder(imageSize))
-                {
-                    bitmapBuilder.Clear(new BitmapColor(40, 40, 50));
-                    bitmapBuilder.DrawText("📁");
-                    return bitmapBuilder.ToImage();
-                }
-            }
-
-            // Extract color key from parameter
+            // Extract color key from parameter: group_{groupId}_{colorKey}
             var parts = actionParameter.Split('_');
             if (parts.Length >= 3)
             {
@@ -232,7 +202,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     var color = _presetColors[colorKey];
                     using (var bitmapBuilder = new BitmapBuilder(imageSize))
                     {
-                        // Draw color circle
+                        // Draw color
                         if (color.R > 0 || color.G > 0 || color.B > 0)
                         {
                             bitmapBuilder.Clear(new BitmapColor(color.R, color.G, color.B));

@@ -6,7 +6,7 @@ using ShellyLoupedeckPlugin.Models;
 
 namespace ShellyLoupedeckPlugin.Actions
 {
-    public class GroupBrightnessFolder : PluginDynamicFolder
+    public class GroupBrightnessFolder : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _brightnessPresets = new Dictionary<string, int>
@@ -18,14 +18,14 @@ namespace ShellyLoupedeckPlugin.Actions
             { "100%", 100 }
         };
 
-        public GroupBrightnessFolder()
+        public GroupBrightnessFolder() : base()
         {
             DisplayName = "Group Brightness";
             Description = "Brightness presets for groups";
             GroupName = "Group Folders";
         }
 
-        public override bool Load()
+        protected override bool OnLoad()
         {
             _plugin = (ShellyLoupedeckPlugin)base.Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
@@ -33,15 +33,15 @@ namespace ShellyLoupedeckPlugin.Actions
 
             CreateParameters();
 
-            return base.Load();
+            return base.OnLoad();
         }
 
-        public override bool Unload()
+        protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
             _plugin.GroupsUpdated -= OnGroupsUpdated;
 
-            return base.Unload();
+            return base.OnUnload();
         }
 
         private void OnDevicesUpdated(object sender, EventArgs e)
@@ -58,41 +58,30 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             RemoveAllParameters();
 
-            // Add a folder for each Brightness/Dimmer group
+            // Add brightness presets for each Brightness/Color group
             foreach (var group in _plugin.Groups)
             {
                 if (group.Purpose == GroupPurpose.Brightness || group.Purpose == GroupPurpose.Color)
                 {
-                    // Create a folder for this group
-                    var folderId = $"group_{group.Id}";
-                    AddParameter(folderId, $"{group.Name}", group.Name);
-
-                    // Add brightness preset buttons inside this folder
+                    // Add brightness preset buttons for this group
                     foreach (var preset in _brightnessPresets)
                     {
-                        var presetParamId = $"{folderId}_{preset.Key}";
-                        AddParameter(presetParamId, preset.Key, group.Name, folderId);
+                        var presetParamId = $"group_{group.Id}_{preset.Key}";
+                        AddParameter(presetParamId, $"{group.Name} - {preset.Key}", group.Name);
                     }
                 }
             }
 
-            DebugLogger.Log($"GroupBrightnessFolder: Created {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Brightness || g.Purpose == GroupPurpose.Color)} folder parameters");
+            DebugLogger.Log($"GroupBrightnessFolder: Created parameters for {_plugin.Groups.Count(g => g.Purpose == GroupPurpose.Brightness || g.Purpose == GroupPurpose.Color)} groups");
         }
 
-        public override async void RunCommand(string actionParameter)
+        protected override async void RunCommand(string actionParameter)
         {
             DebugLogger.Log($"GroupBrightnessFolder: RunCommand called with parameter: {actionParameter}");
 
             if (string.IsNullOrEmpty(actionParameter))
             {
                 DebugLogger.Log("  -> Parameter is null or empty, returning");
-                return;
-            }
-
-            // Check if this is a folder click (just group_{groupId})
-            if (actionParameter.StartsWith("group_") && !actionParameter.Contains("%"))
-            {
-                DebugLogger.Log("  -> Folder opened, no action needed");
                 return;
             }
 
@@ -195,20 +184,9 @@ namespace ShellyLoupedeckPlugin.Actions
             DebugLogger.Log($"  -> Brightness change complete for group '{group.Name}'");
         }
 
-        public override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
+        protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
         {
-            // If this is a folder (just group_{groupId}), show a folder icon
-            if (actionParameter.StartsWith("group_") && !actionParameter.Contains("%"))
-            {
-                using (var bitmapBuilder = new BitmapBuilder(imageSize))
-                {
-                    bitmapBuilder.Clear(new BitmapColor(40, 40, 50));
-                    bitmapBuilder.DrawText("📁");
-                    return bitmapBuilder.ToImage();
-                }
-            }
-
-            // For brightness presets, show the percentage
+            // Extract brightness preset from: group_{groupId}_{brightness}
             var parts = actionParameter.Split('_');
             if (parts.Length >= 3)
             {
