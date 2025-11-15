@@ -45,6 +45,49 @@ namespace ShellyLoupedeckPlugin.Api
             _lastRequestTime = DateTime.Now;
         }
 
+        private async Task<HttpResponseMessage> PostWithRetryAsync(string url, HttpContent content, string operationName)
+        {
+            const int maxRetries = 2; // Total 3 attempts (1 initial + 2 retries)
+            int attempt = 0;
+
+            while (attempt <= maxRetries)
+            {
+                try
+                {
+                    var response = await _httpClient.PostAsync(url, content);
+
+                    // Check if it's a rate limit error
+                    if ((response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                         (int)response.StatusCode == 429) && attempt < maxRetries)
+                    {
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        DebugLogger.Log($"  {operationName}: Rate limit error ({response.StatusCode}), attempt {attempt + 1}/{maxRetries + 1}. Waiting 2s and retrying...");
+                        DebugLogger.Log($"  {operationName}: Response content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+
+                        attempt++;
+                        await Task.Delay(2000); // Wait 2 seconds before retry
+                        continue;
+                    }
+
+                    return response;
+                }
+                catch (HttpRequestException ex)
+                {
+                    if (attempt < maxRetries)
+                    {
+                        DebugLogger.Log($"  {operationName}: HTTP error on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
+                        attempt++;
+                        await Task.Delay(2000);
+                        continue;
+                    }
+                    throw;
+                }
+            }
+
+            // Should never reach here, but just in case
+            throw new Exception($"{operationName}: Max retries exceeded");
+        }
+
         public async Task<List<ShellyDevice>> GetDevicesAsync()
         {
             if (!IsConfigured)
@@ -249,7 +292,7 @@ namespace ShellyLoupedeckPlugin.Api
 
                 DebugLogger.Log($"  SetRelayStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetRelayStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetRelayStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -286,7 +329,7 @@ namespace ShellyLoupedeckPlugin.Api
 
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetGen3SwitchStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetGen3SwitchStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -323,7 +366,7 @@ namespace ShellyLoupedeckPlugin.Api
 
                 DebugLogger.Log($"  SetLightStateAsync: URL = {url}, Body = id={deviceId}&channel={channel}&turn={turn}");
 
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetLightStateAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightStateAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -365,7 +408,7 @@ namespace ShellyLoupedeckPlugin.Api
                 DebugLogger.Log($"  SetLightBrightnessAsync: URL = {url}, Body = id={deviceId}&turn=on&brightness={brightness}{channelStr}");
 
                 var formContent = new FormUrlEncodedContent(formParams);
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetLightBrightnessAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightBrightnessAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -458,7 +501,7 @@ namespace ShellyLoupedeckPlugin.Api
                 DebugLogger.Log($"  SetLightColorAsync: URL = {url}, Body = id={deviceId}&turn=on&red={red}&green={green}&blue={blue}&white={white}{channelStr}{modeStr}{tempStr}{brightnessStr}");
 
                 var formContent = new FormUrlEncodedContent(formParams);
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetLightColorAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetLightColorAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -492,7 +535,7 @@ namespace ShellyLoupedeckPlugin.Api
 
                 DebugLogger.Log($"  SetThermostatTemperatureAsync: URL = {url}, Body = id={deviceId}&temp={temperature.ToString(CultureInfo.InvariantCulture)}");
 
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetThermostatTemperatureAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetThermostatTemperatureAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
@@ -526,7 +569,7 @@ namespace ShellyLoupedeckPlugin.Api
 
                 DebugLogger.Log($"  SetThermostatBoostAsync: URL = {url}, Body = id={deviceId}&boost_minutes={minutes}");
 
-                var response = await _httpClient.PostAsync(url, formContent);
+                var response = await PostWithRetryAsync(url, formContent, "SetThermostatBoostAsync");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 DebugLogger.Log($"  SetThermostatBoostAsync: Response status = {response.StatusCode}, Content = {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 

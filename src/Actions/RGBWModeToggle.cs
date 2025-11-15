@@ -9,6 +9,8 @@ namespace ShellyLoupedeckPlugin.Actions
     public class RGBWModeToggle : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
+        private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
+        private readonly object _operationLock = new object();
 
         public RGBWModeToggle() : base()
         {
@@ -87,27 +89,49 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (devicePart.StartsWith("group_"))
             {
-                var groupId = devicePart.Substring(6);
-                DebugLogger.Log($"  -> Group action for group ID: {groupId}");
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-                if (group != null)
+                // Check if group operation is already in progress
+                lock (_operationLock)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, setting mode sequentially");
-                    for (int i = 0; i < group.DeviceIds.Count; i++)
+                    if (_groupOperationInProgress.ContainsKey(devicePart) && _groupOperationInProgress[devicePart])
                     {
-                        var deviceId = group.DeviceIds[i];
+                        DebugLogger.Log($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
+                        return;
+                    }
+                    _groupOperationInProgress[devicePart] = true;
+                }
 
-                        // Record user action before each device to prevent refresh task collision
-                        _plugin.RecordUserAction();
-
-                        await SetDeviceModeAsync(deviceId, setToWhite);
-
-                        // Add 2 second delay between devices to respect rate limit (except after last device)
-                        if (i < group.DeviceIds.Count - 1)
+                try
+                {
+                    var groupId = devicePart.Substring(6);
+                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    if (group != null)
+                    {
+                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, setting mode sequentially");
+                        for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
-                            DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
-                            await Task.Delay(2000);
+                            var deviceId = group.DeviceIds[i];
+
+                            // Record user action before each device to prevent refresh task collision
+                            _plugin.RecordUserAction();
+
+                            await SetDeviceModeAsync(deviceId, setToWhite);
+
+                            // Add 2 second delay between devices to respect rate limit (except after last device)
+                            if (i < group.DeviceIds.Count - 1)
+                            {
+                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                await Task.Delay(2000);
+                            }
                         }
+                    }
+                }
+                finally
+                {
+                    // Always reset the flag when done
+                    lock (_operationLock)
+                    {
+                        _groupOperationInProgress[devicePart] = false;
                     }
                 }
             }

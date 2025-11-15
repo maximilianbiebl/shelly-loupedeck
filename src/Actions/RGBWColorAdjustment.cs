@@ -10,6 +10,8 @@ namespace ShellyLoupedeckPlugin.Actions
     public class RGBWColorAdjustment : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
+        private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
+        private readonly object _operationLock = new object();
         private Dictionary<string, (int R, int G, int B, int W)> _presetColors = new Dictionary<string, (int, int, int, int)>
         {
             { "red", (255, 0, 0, 0) },
@@ -140,80 +142,102 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (devicePart.StartsWith("group_"))
             {
-                // Format: group_{groupId}
-                var groupId = devicePart.Substring(6);
-                DebugLogger.Log($"  -> Group action for group ID: {groupId}");
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-                if (group != null)
+                // Check if group operation is already in progress
+                lock (_operationLock)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
-                    for (int i = 0; i < group.DeviceIds.Count; i++)
+                    if (_groupOperationInProgress.ContainsKey(devicePart) && _groupOperationInProgress[devicePart])
                     {
-                        var deviceId = group.DeviceIds[i];
-                        DebugLogger.Log($"    -> Group device {i+1}/{group.DeviceIds.Count}: Setting color for {deviceId}");
+                        DebugLogger.Log($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
+                        return;
+                    }
+                    _groupOperationInProgress[devicePart] = true;
+                }
 
-                        // Record user action before each device to prevent refresh task collision
-                        _plugin.RecordUserAction();
-
-                        // Always preserve current brightness (both color and white mode)
-                        int? brightnessToSet = null;
-                        bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
-                        string modeStr = isColorMode ? "COLOR" : "WHITE";
-
-                        // Read current brightness and set it explicitly
-                        // (prevents API from using default value on mode switch)
-                        if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
+                try
+                {
+                    // Format: group_{groupId}
+                    var groupId = devicePart.Substring(6);
+                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    if (group != null)
+                    {
+                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
-                            brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
-                            DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
-                        }
-                        else
-                        {
-                            // Fallback: read from device status
-                            var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
-                            if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                            var deviceId = group.DeviceIds[i];
+                            DebugLogger.Log($"    -> Group device {i+1}/{group.DeviceIds.Count}: Setting color for {deviceId}");
+
+                            // Record user action before each device to prevent refresh task collision
+                            _plugin.RecordUserAction();
+
+                            // Always preserve current brightness (both color and white mode)
+                            int? brightnessToSet = null;
+                            bool isColorMode = color.R > 0 || color.G > 0 || color.B > 0;
+                            string modeStr = isColorMode ? "COLOR" : "WHITE";
+
+                            // Read current brightness and set it explicitly
+                            // (prevents API from using default value on mode switch)
+                            if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
                             {
-                                brightnessToSet = device.Status.Lights[0].Brightness;
-                                DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
+                                brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
+                                DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
                             }
                             else
                             {
-                                DebugLogger.Log($"    -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
+                                // Fallback: read from device status
+                                var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
+                                if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
+                                {
+                                    brightnessToSet = device.Status.Lights[0].Brightness;
+                                    DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
+                                }
+                                else
+                                {
+                                    DebugLogger.Log($"    -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
+                                }
                             }
-                        }
 
-                        var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
+                            var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, color.R, color.G, color.B, color.W, null, temperature, brightnessToSet);
 
-                        // Only update state if API call succeeded
-                        if (success)
-                        {
-                            // Store color state in plugin for brightness adjustment
-                            _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
-                            DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
-
-                            // Update brightness cache only if we set it
-                            if (brightnessToSet.HasValue)
+                            // Only update state if API call succeeded
+                            if (success)
                             {
-                                _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
-                                DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
-                            }
-                        }
-                        else
-                        {
-                            DebugLogger.Log($"    -> API call failed, NOT updating color state cache");
-                        }
+                                // Store color state in plugin for brightness adjustment
+                                _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
+                                DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
-                        // Add 2 second delay between devices to respect rate limit (except after last device)
-                        if (i < group.DeviceIds.Count - 1)
-                        {
-                            DebugLogger.Log($"    -> Waiting 2000ms before next device (rate limit prevention)");
-                            await Task.Delay(2000);
+                                // Update brightness cache only if we set it
+                                if (brightnessToSet.HasValue)
+                                {
+                                    _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
+                                    DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
+                                }
+                            }
+                            else
+                            {
+                                DebugLogger.Log($"    -> API call failed, NOT updating color state cache");
+                            }
+
+                            // Add 2 second delay between devices to respect rate limit (except after last device)
+                            if (i < group.DeviceIds.Count - 1)
+                            {
+                                DebugLogger.Log($"    -> Waiting 2000ms before next device (rate limit prevention)");
+                                await Task.Delay(2000);
+                            }
                         }
                     }
+                    else
+                    {
+                        DebugLogger.Log($"  -> Group not found!");
+                    }
                 }
-                else
+                finally
                 {
-                    DebugLogger.Log($"  -> Group not found!");
+                    // Always reset the flag when done
+                    lock (_operationLock)
+                    {
+                        _groupOperationInProgress[devicePart] = false;
+                    }
                 }
             }
             else

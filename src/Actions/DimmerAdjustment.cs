@@ -13,7 +13,9 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
         private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
+        private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
         private readonly object _timerLock = new object();
+        private readonly object _operationLock = new object();
 
         public DimmerAdjustment() : base(false)
         {
@@ -209,30 +211,52 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             if (actionParameter.StartsWith("group_"))
             {
-                var groupId = actionParameter.Substring(6);
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-                if (group != null)
+                // Check if group operation is already in progress
+                lock (_operationLock)
                 {
-                    DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
-                    for (int i = 0; i < group.DeviceIds.Count; i++)
+                    if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        var deviceId = group.DeviceIds[i];
-                        if (_currentBrightness.ContainsKey(deviceId))
+                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        return;
+                    }
+                    _groupOperationInProgress[actionParameter] = true;
+                }
+
+                try
+                {
+                    var groupId = actionParameter.Substring(6);
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    if (group != null)
+                    {
+                        DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
-                            DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
-
-                            // Record user action before each device to prevent refresh task collision
-                            _plugin.RecordUserAction();
-
-                            await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, _currentBrightness[deviceId]);
-
-                            // Add 2 second delay between devices to respect rate limit (except after last device)
-                            if (i < group.DeviceIds.Count - 1)
+                            var deviceId = group.DeviceIds[i];
+                            if (_currentBrightness.ContainsKey(deviceId))
                             {
-                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
-                                await Task.Delay(2000);
+                                DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+
+                                // Record user action before each device to prevent refresh task collision
+                                _plugin.RecordUserAction();
+
+                                await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, _currentBrightness[deviceId]);
+
+                                // Add 2 second delay between devices to respect rate limit (except after last device)
+                                if (i < group.DeviceIds.Count - 1)
+                                {
+                                    DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                    await Task.Delay(2000);
+                                }
                             }
                         }
+                    }
+                }
+                finally
+                {
+                    // Always reset the flag when done
+                    lock (_operationLock)
+                    {
+                        _groupOperationInProgress[actionParameter] = false;
                     }
                 }
             }

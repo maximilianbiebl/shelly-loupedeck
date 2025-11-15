@@ -9,6 +9,8 @@ namespace ShellyLoupedeckPlugin.Actions
     public class DeviceSwitchAction : PluginDynamicCommand
     {
         private ShellyLoupedeckPlugin _plugin;
+        private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
+        private readonly object _operationLock = new object();
 
         public DeviceSwitchAction() : base()
         {
@@ -128,49 +130,71 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (actionParameter.StartsWith("group_"))
             {
-                var groupId = actionParameter.Substring(6);
-                DebugLogger.Log($"  -> Group action for group ID: {groupId}");
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-                if (group != null)
+                // Check if group operation is already in progress
+                lock (_operationLock)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
-                    for (int i = 0; i < group.DeviceIds.Count; i++)
+                    if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        var deviceParam = group.DeviceIds[i];
+                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        return;
+                    }
+                    _groupOperationInProgress[actionParameter] = true;
+                }
 
-                        // Parse device ID and channel (format: deviceId or deviceId_chN)
-                        string deviceId = deviceParam;
-                        int channel = 0;
-
-                        if (deviceParam.Contains("_ch"))
+                try
+                {
+                    var groupId = actionParameter.Substring(6);
+                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    if (group != null)
+                    {
+                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
-                            var parts = deviceParam.Split(new[] { "_ch" }, StringSplitOptions.None);
-                            if (parts.Length == 2)
+                            var deviceParam = group.DeviceIds[i];
+
+                            // Parse device ID and channel (format: deviceId or deviceId_chN)
+                            string deviceId = deviceParam;
+                            int channel = 0;
+
+                            if (deviceParam.Contains("_ch"))
                             {
-                                deviceId = parts[0];
-                                int.TryParse(parts[1], out channel);
+                                var parts = deviceParam.Split(new[] { "_ch" }, StringSplitOptions.None);
+                                if (parts.Length == 2)
+                                {
+                                    deviceId = parts[0];
+                                    int.TryParse(parts[1], out channel);
+                                }
+                            }
+
+                            DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
+
+                            // Record user action before each device to prevent refresh task collision
+                            _plugin.RecordUserAction();
+
+                            await ToggleDeviceAsync(deviceId, channel, skipStatusRefresh: true);
+
+                            // Add 2 second delay between devices to respect rate limit (except after last device)
+                            if (i < group.DeviceIds.Count - 1)
+                            {
+                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                await Task.Delay(2000);
                             }
                         }
-
-                        DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
-
-                        // Record user action before each device to prevent refresh task collision
-                        _plugin.RecordUserAction();
-
-                        await ToggleDeviceAsync(deviceId, channel, skipStatusRefresh: true);
-
-                        // Add 2 second delay between devices to respect rate limit (except after last device)
-                        if (i < group.DeviceIds.Count - 1)
-                        {
-                            DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
-                            await Task.Delay(2000);
-                        }
+                        DebugLogger.Log($"  -> Group operation complete, status will be refreshed by background task");
                     }
-                    DebugLogger.Log($"  -> Group operation complete, status will be refreshed by background task");
+                    else
+                    {
+                        DebugLogger.Log($"  -> Group not found!");
+                    }
                 }
-                else
+                finally
                 {
-                    DebugLogger.Log($"  -> Group not found!");
+                    // Always reset the flag when done
+                    lock (_operationLock)
+                    {
+                        _groupOperationInProgress[actionParameter] = false;
+                    }
                 }
             }
             else

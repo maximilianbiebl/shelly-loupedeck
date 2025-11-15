@@ -13,7 +13,9 @@ namespace ShellyLoupedeckPlugin.Actions
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
         private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
+        private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
         private readonly object _timerLock = new object();
+        private readonly object _operationLock = new object();
 
         public RGBWBrightnessAdjustment() : base(false)
         {
@@ -268,52 +270,74 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             if (actionParameter.StartsWith("group_"))
             {
-                var groupId = actionParameter.Substring(6);
-                var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
-                if (group != null)
+                // Check if group operation is already in progress
+                lock (_operationLock)
                 {
-                    DebugLogger.Log($"  -> Sending brightness update for group '{group.Name}' (Purpose: {group.Purpose}) with {group.DeviceIds.Count} devices");
-
-                    // For color groups, ensure all devices get the same color
-                    (int R, int G, int B, int W, int? temp) groupColorState = (0, 0, 0, 0, null);
-                    if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
+                    if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        // Try to get color from first device in group, or use a default
-                        if (group.DeviceIds.Count > 0 && _plugin.DeviceColorStates.ContainsKey(group.DeviceIds[0]))
-                        {
-                            groupColorState = _plugin.DeviceColorStates[group.DeviceIds[0]];
-                            DebugLogger.Log($"  -> Using color from first device: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
-                        }
-                        else
-                        {
-                            // Default to warm white color
-                            groupColorState = (255, 180, 100, 0, null);
-                            DebugLogger.Log($"  -> Using default warm white color: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
-                        }
+                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        return;
                     }
+                    _groupOperationInProgress[actionParameter] = true;
+                }
 
-                    for (int i = 0; i < group.DeviceIds.Count; i++)
+                try
+                {
+                    var groupId = actionParameter.Substring(6);
+                    var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
+                    if (group != null)
                     {
-                        var deviceId = group.DeviceIds[i];
-                        DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+                        DebugLogger.Log($"  -> Sending brightness update for group '{group.Name}' (Purpose: {group.Purpose}) with {group.DeviceIds.Count} devices");
 
-                        // Record user action before each device to prevent refresh task collision
-                        _plugin.RecordUserAction();
-
-                        // For color/brightness groups, sync color state across all devices
+                        // For color groups, ensure all devices get the same color
+                        (int R, int G, int B, int W, int? temp) groupColorState = (0, 0, 0, 0, null);
                         if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
                         {
-                            _plugin.DeviceColorStates[deviceId] = groupColorState;
+                            // Try to get color from first device in group, or use a default
+                            if (group.DeviceIds.Count > 0 && _plugin.DeviceColorStates.ContainsKey(group.DeviceIds[0]))
+                            {
+                                groupColorState = _plugin.DeviceColorStates[group.DeviceIds[0]];
+                                DebugLogger.Log($"  -> Using color from first device: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                            }
+                            else
+                            {
+                                // Default to warm white color
+                                groupColorState = (255, 180, 100, 0, null);
+                                DebugLogger.Log($"  -> Using default warm white color: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                            }
                         }
 
-                        await SendDeviceBrightnessAsync(deviceId);
-
-                        // Add 2 second delay between devices to respect rate limit (except after last device)
-                        if (i < group.DeviceIds.Count - 1)
+                        for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
-                            DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
-                            await Task.Delay(2000);
+                            var deviceId = group.DeviceIds[i];
+                            DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+
+                            // Record user action before each device to prevent refresh task collision
+                            _plugin.RecordUserAction();
+
+                            // For color/brightness groups, sync color state across all devices
+                            if (group.Purpose == GroupPurpose.Color || group.Purpose == GroupPurpose.Brightness)
+                            {
+                                _plugin.DeviceColorStates[deviceId] = groupColorState;
+                            }
+
+                            await SendDeviceBrightnessAsync(deviceId);
+
+                            // Add 2 second delay between devices to respect rate limit (except after last device)
+                            if (i < group.DeviceIds.Count - 1)
+                            {
+                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                await Task.Delay(2000);
+                            }
                         }
+                    }
+                }
+                finally
+                {
+                    // Always reset the flag when done
+                    lock (_operationLock)
+                    {
+                        _groupOperationInProgress[actionParameter] = false;
                     }
                 }
             }
