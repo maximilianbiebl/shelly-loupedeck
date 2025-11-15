@@ -23,7 +23,7 @@ namespace ShellyLoupedeckPlugin.Actions
         // "temperature_{deviceId}" = temperature adjustment
         private string _currentSubmenu = null;
 
-        public CustomFolder1()
+        public CustomFolder6()
         {
             DisplayName = "Custom Folder 6";
             Description = "Configurable folder slot 1";
