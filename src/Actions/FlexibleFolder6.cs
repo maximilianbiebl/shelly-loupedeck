@@ -118,6 +118,14 @@ namespace ShellyLoupedeckPlugin.Actions
             if (currentLevel == null)
                 return actions;
 
+            // Debug: Log current level buttons
+            DebugLogger.Log($"[FlexibleFolder6] Current level '{currentLevel.Name}' has {currentLevel.Buttons.Count} buttons");
+            for (int i = 0; i < currentLevel.Buttons.Count; i++)
+            {
+                var btn = currentLevel.Buttons[i];
+                DebugLogger.Log($"  Button {i}: Type={btn.Type}, Label='{btn.Label}', DeviceId={btn.DeviceId}, ActionType={btn.ActionType}");
+            }
+
             // Add all buttons from current level
             for (int i = 0; i < currentLevel.Buttons.Count && i < 8; i++)
             {
@@ -187,6 +195,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 // Navigation button - purple/blue
                                 builder.Clear(new BitmapColor(100, 50, 200));
                                 builder.DrawText(button.Label ?? "→", BitmapColor.White, 18);
+                                return builder.ToImage();
                             }
                             else if (button.Type == FlexibleButtonType.Action)
                             {
@@ -206,7 +215,11 @@ namespace ShellyLoupedeckPlugin.Actions
                                 {
                                     builder.DrawText(button.Label, BitmapColor.White, 14);
                                 }
+
+                                return builder.ToImage();
                             }
+
+                            return builder.ToImage();
                         }
                     }
                 }
