@@ -32,13 +32,18 @@ Ein Loupedeck Plugin zur Steuerung von Shelly Smart Home Geräten über die Shel
    cd shelly-loupedeck
    .\package.ps1
    ```
+   Bei PowerShell Execution Policy Problem:
+   ```
+   powershell -ExecutionPolicy Bypass -File .\package.ps1
 
-2. **Plugin installieren:**
+   ```
+
+3. **Plugin installieren:**
    - Doppelklick auf `ShellyCloudControl.lplug4`
    - ODER: Drag & Drop in Loupedeck Software
    - ODER: Loupedeck → Einstellungen → Plugins → Install Plugin from File
 
-3. **Fertig!** Das Plugin ist installiert.
+4. **Fertig!** Das Plugin ist installiert.
 
 Siehe **[PACKAGE_INSTALL.md](PACKAGE_INSTALL.md)** für Details.
 
