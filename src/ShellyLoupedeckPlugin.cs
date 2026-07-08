@@ -17,6 +17,8 @@ namespace ShellyLoupedeckPlugin
         private List<FlexibleFolderConfiguration> _flexibleFolders = new List<FlexibleFolderConfiguration>();
         private System.Threading.Timer _refreshTimer;
         private DateTime _lastUserActionTime = DateTime.MinValue;
+        private bool _isInErrorState = false;
+        private int _consecutiveErrorCount = 0;
 
         // Shared color state for RGBW devices (deviceId -> (R, G, B, W, Temperature))
         public Dictionary<string, (int R, int G, int B, int W, int? Temperature)> DeviceColorStates { get; } = new Dictionary<string, (int, int, int, int, int?)>();
@@ -170,33 +172,36 @@ namespace ShellyLoupedeckPlugin
                 DebugLogger.Log("Shelly Plugin: Starting device refresh...");
                 _devices = await _apiClient.GetDevicesAsync();
                 DebugLogger.Log($"Shelly Plugin: Loaded {_devices.Count} devices");
+
+                // Reset error state on successful refresh
+                if (_isInErrorState)
+                {
+                    DebugLogger.Log("Shelly Plugin: Connection restored, error state cleared");
+                    _isInErrorState = false;
+                    _consecutiveErrorCount = 0;
+                }
+
                 OnDevicesUpdated();
                 DebugLogger.Log("Shelly Plugin: Device refresh complete, parameters updated");
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
-                DebugLogger.Log($"Shelly Plugin ERROR: {ex.StackTrace}");
+                _consecutiveErrorCount++;
 
-                // Show error to user
-                try
+                // Only log detailed error info on first occurrence or every 10th consecutive error
+                if (!_isInErrorState || _consecutiveErrorCount % 10 == 0)
                 {
-                    System.Windows.Forms.MessageBox.Show(
-                        $"Failed to load Shelly devices:\n\n{ex.Message}\n\nPlease check:\n" +
-                        "- Server URL is correct\n" +
-                        "- Authorization Key is valid\n" +
-                        "- You have internet connection\n" +
-                        "- Shelly Cloud is reachable\n\n" +
-                        "Log file: %LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
-                        "Shelly API Error",
-                        System.Windows.Forms.MessageBoxButtons.OK,
-                        System.Windows.Forms.MessageBoxIcon.Error
-                    );
+                    DebugLogger.Log($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
+                    DebugLogger.Log($"Shelly Plugin ERROR (attempt {_consecutiveErrorCount}): Check internet connection and Shelly Cloud availability");
+
+                    if (!_isInErrorState)
+                    {
+                        DebugLogger.Log("Shelly Plugin: Entering error state - will retry silently until connection restored");
+                        _isInErrorState = true;
+                    }
                 }
-                catch
-                {
-                    // Ignore if message box fails
-                }
+
+                // Silent retry - no popups, no spam
             }
         }
 

@@ -220,12 +220,9 @@ namespace ShellyLoupedeckPlugin.Api
                     return devicesList;
                 }
 
-                System.Windows.Forms.MessageBox.Show(
-                    $"API Response received but no devices found.\n\nResponse preview:\n{content.Substring(0, Math.Min(300, content.Length))}\n\nCheck log file at:\n%LocalAppData%\\Loupedeck\\Logs\\ShellyPlugin_Debug.log",
-                    "Shelly API - No Devices",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Warning
-                );
+                // No devices found - log only, no popup
+                DebugLogger.Log("Shelly API: Response received but no devices found");
+                DebugLogger.Log($"Response preview: {content.Substring(0, Math.Min(300, content.Length))}");
                 return new List<ShellyDevice>();
             }
             catch (Exception ex)
