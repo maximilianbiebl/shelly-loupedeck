@@ -3,7 +3,9 @@
 
 param(
     [switch]$Clean,
-    [string]$Version
+    [string]$Version,
+    # Full path to PluginApi.dll, for when it cannot be discovered automatically
+    [string]$PluginApi
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,22 +53,10 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     exit 1
 }
 
-# The manifest ships the version inside the package
-$manifest = $manifest -replace '(?m)^version:\s*\d+\.\d+\.\d+\s*$', "version: $Version"
-Set-Content $manifestPath -Value $manifest -NoNewline
-
-# The profile copy is what the next build increments from, and it survives a
-# fresh download of the source tree
-try {
-    $null = New-Item -ItemType Directory -Force -Path (Split-Path $buildNumberFile)
-    Set-Content $buildNumberFile -Value ($Version -split '\.')[2] -NoNewline
-}
-catch {
-    Write-Host "Warning: could not record the build number at $buildNumberFile" -ForegroundColor Yellow
-    Write-Host "  The next build may reuse this version, which Loupedeck would skip." -ForegroundColor Yellow
-}
-
 Write-Host "Package version: $Version" -ForegroundColor Cyan
+
+# The version is only recorded once the build succeeds - see below. A failed
+# build would otherwise consume the number and leave a gap.
 
 # Clean previous builds
 if ($Clean) {
@@ -77,9 +67,20 @@ if ($Clean) {
     if (Test-Path "*.lplug4") { Remove-Item -Force "*.lplug4" }
 }
 
+# An explicit SDK path overrides the project's discovery
+$buildArgs = @()
+if ($PluginApi) {
+    if (-not (Test-Path $PluginApi)) {
+        Write-Host "PluginApi.dll not found at: $PluginApi" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Using PluginApi: $PluginApi" -ForegroundColor Cyan
+    $buildArgs += "-p:PluginApiPath=$PluginApi"
+}
+
 # Build Release
 Write-Host "Building Release..." -ForegroundColor Yellow
-dotnet restore
+dotnet restore @buildArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Restore failed!" -ForegroundColor Red
     exit 1
@@ -90,13 +91,29 @@ if ($LASTEXITCODE -ne 0) {
 dotnet build -c Release -p:Platform=x64 `
     -p:Version=$Version `
     -p:AssemblyVersion="$Version.0" `
-    -p:FileVersion="$Version.0"
+    -p:FileVersion="$Version.0" `
+    @buildArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "Build successful!" -ForegroundColor Green
+
+# Record the version only now, so a failed build does not consume a number.
+# The manifest ships it inside the package; the profile copy is what the next
+# build increments from and survives a fresh download of the source tree.
+$manifest = $manifest -replace '(?m)^version:\s*\d+\.\d+\.\d+\s*$', "version: $Version"
+Set-Content $manifestPath -Value $manifest -NoNewline
+
+try {
+    $null = New-Item -ItemType Directory -Force -Path (Split-Path $buildNumberFile)
+    Set-Content $buildNumberFile -Value ($Version -split '\.')[2] -NoNewline
+}
+catch {
+    Write-Host "Warning: could not record the build number at $buildNumberFile" -ForegroundColor Yellow
+    Write-Host "  The next build may reuse this version, which Loupedeck would skip." -ForegroundColor Yellow
+}
 
 # Create package directory structure
 Write-Host "Creating package structure..." -ForegroundColor Yellow

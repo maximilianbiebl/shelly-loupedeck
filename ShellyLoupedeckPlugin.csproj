@@ -17,16 +17,35 @@
     <FileVersion>1.0.0.0</FileVersion>
     <Version>1.0.0</Version>
 
-    <!-- Loupedeck Installation Path - Adjust if your installation is elsewhere -->
-    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == '' And Exists('C:\Program Files\Loupedeck\Loupedeck2\')">C:\Program Files\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
-    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == '' And Exists('C:\Program Files (x86)\Loupedeck\Loupedeck2\')">C:\Program Files (x86)\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
-    <LoupedeckInstallFolder Condition="'$(LoupedeckInstallFolder)' == ''">C:\Program Files\Loupedeck\Loupedeck2\</LoupedeckInstallFolder>
+    <!-- Loupedeck SDK location.
+         PluginApi.dll ships with the Loupedeck software and has moved between
+         releases, so several known locations are probed. Override it explicitly
+         when discovery fails:
+             .\package.ps1 -PluginApi "C:\path\to\PluginApi.dll"
+         Probing the DLL itself rather than its folder means a stale folder
+         cannot satisfy the check and leave the reference unresolved. -->
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(ProgramW6432)\Loupedeck\Loupedeck2\PluginApi.dll')">$(ProgramW6432)\Loupedeck\Loupedeck2\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(MSBuildProgramFiles32)\Loupedeck\Loupedeck2\PluginApi.dll')">$(MSBuildProgramFiles32)\Loupedeck\Loupedeck2\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(ProgramW6432)\Loupedeck\PluginApi.dll')">$(ProgramW6432)\Loupedeck\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(MSBuildProgramFiles32)\Loupedeck\PluginApi.dll')">$(MSBuildProgramFiles32)\Loupedeck\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(LOCALAPPDATA)\Loupedeck\Loupedeck2\PluginApi.dll')">$(LOCALAPPDATA)\Loupedeck\Loupedeck2\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(LOCALAPPDATA)\Loupedeck\PluginApi.dll')">$(LOCALAPPDATA)\Loupedeck\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(ProgramW6432)\Logi\LogiPluginService\PluginApi.dll')">$(ProgramW6432)\Logi\LogiPluginService\PluginApi.dll</PluginApiPath>
+    <PluginApiPath Condition="'$(PluginApiPath)' == '' And Exists('$(MSBuildProgramFiles32)\Logi\LogiPluginService\PluginApi.dll')">$(MSBuildProgramFiles32)\Logi\LogiPluginService\PluginApi.dll</PluginApiPath>
   </PropertyGroup>
+
+  <!-- Without this reference every Loupedeck type is unknown, which surfaces as
+       a hundred-plus CS0246 errors behind a single easily missed warning. Fail
+       with one actionable message instead. -->
+  <Target Name="VerifyPluginApi" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(PluginApiPath)' == ''"
+           Text="PluginApi.dll from the Loupedeck installation was not found in any known location. Locate it with:  Get-ChildItem -Path 'C:\Program Files','C:\Program Files (x86)',$env:LOCALAPPDATA -Filter PluginApi.dll -Recurse -ErrorAction SilentlyContinue  then rebuild with:  .\package.ps1 -PluginApi '&lt;full path to PluginApi.dll&gt;'" />
+  </Target>
 
   <ItemGroup>
     <!-- Loupedeck Plugin SDK - Referenced from local installation -->
     <Reference Include="PluginApi">
-      <HintPath>$(LoupedeckInstallFolder)PluginApi.dll</HintPath>
+      <HintPath>$(PluginApiPath)</HintPath>
       <Private>False</Private>
     </Reference>
 
