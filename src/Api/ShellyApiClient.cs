@@ -22,6 +22,9 @@ namespace ShellyLoupedeckPlugin.Api
         // Device structure is logged once per session rather than on every refresh
         private bool _loggedRawDeviceFields = false;
 
+        // Resolved device names, cached for the session (null until first lookup)
+        private Dictionary<string, string> _deviceNames;
+
         public ShellyApiClient()
         {
             _httpClient = new HttpClient
@@ -34,6 +37,9 @@ namespace ShellyLoupedeckPlugin.Api
         {
             _serverUrl = serverUrl.TrimEnd('/');
             _authKey = authKey;
+
+            // Names belong to the account, so a credential change invalidates them
+            _deviceNames = null;
         }
 
         public bool IsConfigured => !string.IsNullOrWhiteSpace(_authKey);
@@ -116,29 +122,8 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                // Step 1: Get user-assigned device names from /device/list.
-                // Device ids are matched case-insensitively because all_status keys and
-                // list ids differ in casing depending on the account.
-                var deviceNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                try
-                {
-                    var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
-                    var listResponse = await _httpClient.GetAsync(listUrl);
-
-                    if (listResponse.IsSuccessStatusCode)
-                    {
-                        var listContent = await listResponse.Content.ReadAsStringAsync();
-                        ParseDeviceNames(listContent, deviceNames);
-                    }
-                    else
-                    {
-                        DebugLogger.Log($"Shelly API: /device/list returned {(int)listResponse.StatusCode} {listResponse.ReasonPhrase}, falling back to generated names");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DebugLogger.Log($"Shelly API: /device/list failed ({ex.GetType().Name}: {ex.Message}), falling back to generated names");
-                }
+                // Step 1: Get the names the user assigned to their devices
+                var deviceNames = await GetDeviceNamesAsync();
 
                 // Step 2: Get device statuses from /device/all_status
                 var url = $"{_serverUrl}/device/all_status?auth_key={_authKey}";
@@ -274,7 +259,79 @@ namespace ShellyLoupedeckPlugin.Api
         }
 
         /// <summary>
-        /// Extracts device id to user-assigned name pairs from a /device/list response.
+        /// Fetches the names the user assigned to their devices in the Shelly app.
+        /// The status endpoint does not carry them, and which endpoint serves them
+        /// varies between Shelly Cloud deployments, so the known candidates are tried
+        /// in order. The outcome is cached for the session: names rarely change, and
+        /// re-probing a missing endpoint on every refresh would burn a request every
+        /// few seconds against a rate-limited API.
+        /// </summary>
+        private async Task<Dictionary<string, string>> GetDeviceNamesAsync()
+        {
+            if (_deviceNames != null)
+                return _deviceNames;
+
+            var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Ordered by how current each endpoint is; the first that yields names wins
+            var candidates = new[]
+            {
+                new { Path = "/interface/device/get_all_lists", Post = true },
+                new { Path = "/device/list", Post = false }
+            };
+
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    await RateLimitAsync();
+
+                    HttpResponseMessage response;
+                    if (candidate.Post)
+                    {
+                        var form = new FormUrlEncodedContent(new[]
+                        {
+                            new KeyValuePair<string, string>("auth_key", _authKey)
+                        });
+                        response = await _httpClient.PostAsync($"{_serverUrl}{candidate.Path}", form);
+                    }
+                    else
+                    {
+                        response = await _httpClient.GetAsync($"{_serverUrl}{candidate.Path}?auth_key={_authKey}");
+                    }
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        DebugLogger.Log($"Shelly API: {candidate.Path} returned {(int)response.StatusCode} {response.ReasonPhrase}");
+                        continue;
+                    }
+
+                    ParseDeviceNames(await response.Content.ReadAsStringAsync(), names);
+
+                    if (names.Count > 0)
+                    {
+                        DebugLogger.Log($"Shelly API: resolved {names.Count} device name(s) via {candidate.Path}");
+                        break;
+                    }
+
+                    DebugLogger.Log($"Shelly API: {candidate.Path} answered but carried no names");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"Shelly API: {candidate.Path} failed ({ex.GetType().Name}: {ex.Message})");
+                }
+            }
+
+            if (names.Count == 0)
+                DebugLogger.Log("Shelly API: no endpoint supplied device names, using generated labels");
+
+            // Cached either way - an empty result must not trigger a retry every refresh
+            _deviceNames = names;
+            return names;
+        }
+
+        /// <summary>
+        /// Extracts device id to user-assigned name pairs from a device list response.
         /// The endpoint returns "devices" either as an object keyed by device id or as
         /// an array of objects carrying their own id. Deserialising into a fixed shape
         /// throws on the other one and loses every name, so both are accepted here.
@@ -305,13 +362,6 @@ namespace ShellyLoupedeckPlugin.Api
                         into[id] = name.Trim();
                 }
             }
-            else
-            {
-                DebugLogger.Log("Shelly API: /device/list contained no 'devices' section");
-                return;
-            }
-
-            DebugLogger.Log($"Shelly API: /device/list supplied {into.Count} device name(s)");
         }
 
         public async Task<ShellyDevice> GetDeviceStatusAsync(string deviceId)
