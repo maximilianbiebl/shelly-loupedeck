@@ -54,12 +54,30 @@ namespace ShellyLoupedeckPlugin.Models
         [JsonProperty("sys")]
         public Gen3SysInfo Sys { get; set; }
 
+        // Gen 4 light components. Dimmers and lights expose "light:N" instead of
+        // the "switch:N" used by relay-style component devices.
+        [JsonProperty("light:0")]
+        public LightComponent Light0 { get; set; }
+
+        [JsonProperty("light:1")]
+        public LightComponent Light1 { get; set; }
+
         public ShellyDeviceType GetDeviceType()
         {
-            // Check for Gen 3 devices first (component-based structure)
+            // Component-based devices (Gen 3/4) must be classified by their actual
+            // component. The "sys" block is shared by every component device, so the
+            // switch branch below would otherwise claim dimmers and lights too.
+            if (Light0 != null || Light1 != null)
+            {
+                var light = Light0 ?? Light1;
+                return (light.Rgb != null && light.Rgb.Count >= 3)
+                    ? ShellyDeviceType.RGBW
+                    : ShellyDeviceType.Dimmer;
+            }
+
             if (Switch0 != null || Switch1 != null || Sys != null)
             {
-                // Gen 3 device detected - it's a switch
+                // Component-based relay device
                 return ShellyDeviceType.Switch;
             }
 
@@ -277,6 +295,53 @@ namespace ShellyLoupedeckPlugin.Models
 
         [JsonProperty("source")]
         public string Source { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// A "light:N" component as used by Gen 4 dimmers and lights. Colour-capable
+    /// devices additionally populate <see cref="Rgb"/>.
+    /// </summary>
+    public class LightComponent
+    {
+        [JsonProperty("id")]
+        public int Id { get; set; }
+
+        [JsonProperty("output")]
+        public bool Output { get; set; }
+
+        [JsonProperty("brightness")]
+        public double Brightness { get; set; }
+
+        [JsonProperty("source")]
+        public string Source { get; set; } = string.Empty;
+
+        [JsonProperty("rgb")]
+        public List<int> Rgb { get; set; }
+
+        [JsonProperty("white")]
+        public int? White { get; set; }
+
+        /// <summary>Projects this component onto the legacy light status shape.</summary>
+        public LightStatus ToLightStatus()
+        {
+            var status = new LightStatus
+            {
+                IsOn = Output,
+                Brightness = (int)Math.Round(Brightness)
+            };
+
+            if (Rgb != null && Rgb.Count >= 3)
+            {
+                status.Red = Rgb[0];
+                status.Green = Rgb[1];
+                status.Blue = Rgb[2];
+            }
+
+            if (White.HasValue)
+                status.White = White.Value;
+
+            return status;
+        }
     }
 
     public class Gen3SysInfo

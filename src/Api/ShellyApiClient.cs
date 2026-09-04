@@ -19,6 +19,9 @@ namespace ShellyLoupedeckPlugin.Api
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly TimeSpan _rateLimitDelay = TimeSpan.FromSeconds(1); // 1 request per second
 
+        // Device structure is logged once per session rather than on every refresh
+        private bool _loggedRawDeviceFields = false;
+
         public ShellyApiClient()
         {
             _httpClient = new HttpClient
@@ -155,24 +158,31 @@ namespace ShellyLoupedeckPlugin.Api
 
                 var result = JsonConvert.DeserializeObject<AllStatusResponse>(content);
 
-                // Log raw JSON field names per device - the typed model discards unknown
-                // fields, so this is the only way to see new device generations' structure
-                try
+                // Log raw JSON field names per device once per session - the typed model
+                // discards unknown fields, so this is the only way to see the structure
+                // of device generations the model does not cover yet. Logging it on every
+                // refresh would flood the log, so it runs on the first fetch only.
+                var logDeviceStructure = !_loggedRawDeviceFields;
+                if (logDeviceStructure)
                 {
-                    var rawRoot = JObject.Parse(content);
-                    var rawDevices = rawRoot["data"]?["devices_status"] as JObject;
-                    if (rawDevices != null)
+                    _loggedRawDeviceFields = true;
+                    try
                     {
-                        foreach (var rawDevice in rawDevices)
+                        var rawRoot = JObject.Parse(content);
+                        var rawDevices = rawRoot["data"]?["devices_status"] as JObject;
+                        if (rawDevices != null)
                         {
-                            var fields = (rawDevice.Value as JObject)?.Properties().Select(p => p.Name);
-                            DebugLogger.Log($"  RAW {rawDevice.Key}: {string.Join(", ", fields ?? Enumerable.Empty<string>())}");
+                            foreach (var rawDevice in rawDevices)
+                            {
+                                var fields = (rawDevice.Value as JObject)?.Properties().Select(p => p.Name);
+                                DebugLogger.Log($"  RAW {rawDevice.Key}: {string.Join(", ", fields ?? Enumerable.Empty<string>())}");
+                            }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    DebugLogger.Log($"  Raw field logging failed: {ex.Message}");
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"  Raw field logging failed: {ex.Message}");
+                    }
                 }
 
                 if (result != null && result.Data != null && result.Data.DevicesStatus != null)
@@ -231,17 +241,29 @@ namespace ShellyLoupedeckPlugin.Api
                                 };
                                 device.Status.Relays = device.Relays;
                             }
+
+                            // For Gen 4 devices, convert light components to light status
+                            if (device.Light0 != null && device.Lights == null)
+                            {
+                                device.Lights = new List<LightStatus> { device.Light0.ToLightStatus() };
+
+                                if (device.Light1 != null)
+                                    device.Lights.Add(device.Light1.ToLightStatus());
+
+                                device.Status.Lights = device.Lights;
+                            }
                         }
 
                         devicesList.Add(device);
                         var deviceType = device.GetDeviceType();
 
-                        // Debug logging for each device
-                        DebugLogger.Log($"  Device: {device.Name ?? device.Id} | Type: {deviceType} | Model: {device.GetInfo?.FwInfo?.Device ?? device.Type}");
-                        DebugLogger.Log($"    Lights: {device.Lights?.Count ?? 0}, Relays: {device.Relays?.Count ?? 0}, Switch0: {device.Switch0 != null}, Sys: {device.Sys != null}");
+                        if (logDeviceStructure)
+                        {
+                            DebugLogger.Log($"  Device: {device.Name ?? device.Id} | Type: {deviceType} | Model: {device.GetInfo?.FwInfo?.Device ?? device.Type}");
+                            DebugLogger.Log($"    Lights: {device.Lights?.Count ?? 0}, Relays: {device.Relays?.Count ?? 0}, Switch0: {device.Switch0 != null}, Light0: {device.Light0 != null}, Sys: {device.Sys != null}");
+                        }
                     }
 
-                    DebugLogger.Log($"Total devices loaded: {devicesList.Count}");
                     return devicesList;
                 }
 
