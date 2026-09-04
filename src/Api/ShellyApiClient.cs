@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -154,6 +155,25 @@ namespace ShellyLoupedeckPlugin.Api
 
                 var result = JsonConvert.DeserializeObject<AllStatusResponse>(content);
 
+                // Log raw JSON field names per device - the typed model discards unknown
+                // fields, so this is the only way to see new device generations' structure
+                try
+                {
+                    var rawRoot = JObject.Parse(content);
+                    var rawDevices = rawRoot["data"]?["devices_status"] as JObject;
+                    if (rawDevices != null)
+                    {
+                        foreach (var rawDevice in rawDevices)
+                        {
+                            var fields = (rawDevice.Value as JObject)?.Properties().Select(p => p.Name);
+                            DebugLogger.Log($"  RAW {rawDevice.Key}: {string.Join(", ", fields ?? Enumerable.Empty<string>())}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"  Raw field logging failed: {ex.Message}");
+                }
 
                 if (result != null && result.Data != null && result.Data.DevicesStatus != null)
                 {
@@ -215,8 +235,13 @@ namespace ShellyLoupedeckPlugin.Api
 
                         devicesList.Add(device);
                         var deviceType = device.GetDeviceType();
+
+                        // Debug logging for each device
+                        DebugLogger.Log($"  Device: {device.Name ?? device.Id} | Type: {deviceType} | Model: {device.GetInfo?.FwInfo?.Device ?? device.Type}");
+                        DebugLogger.Log($"    Lights: {device.Lights?.Count ?? 0}, Relays: {device.Relays?.Count ?? 0}, Switch0: {device.Switch0 != null}, Sys: {device.Sys != null}");
                     }
 
+                    DebugLogger.Log($"Total devices loaded: {devicesList.Count}");
                     return devicesList;
                 }
 
