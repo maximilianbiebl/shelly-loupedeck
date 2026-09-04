@@ -213,13 +213,35 @@ namespace ShellyLoupedeckPlugin.UI
             Controls.Add(_cancelButton);
         }
 
-        private void LoadLevelTree()
+        /// <summary>
+        /// Rebuilds the level tree, keeping <paramref name="levelToSelect"/> selected
+        /// (defaulting to the current selection). Without this the selection snaps back
+        /// to the root after every edit, so buttons added next land on the wrong level.
+        /// </summary>
+        private void LoadLevelTree(FlexibleFolderLevel levelToSelect = null)
         {
+            var target = levelToSelect ?? _selectedLevel ?? _folder.RootLevel;
+
             _levelTreeView.Nodes.Clear();
             var rootNode = CreateTreeNode(_folder.RootLevel);
             _levelTreeView.Nodes.Add(rootNode);
-            rootNode.Expand();
-            _levelTreeView.SelectedNode = rootNode;
+            _levelTreeView.ExpandAll();
+            _levelTreeView.SelectedNode = FindNode(rootNode, target) ?? rootNode;
+        }
+
+        private static TreeNode FindNode(TreeNode node, FlexibleFolderLevel level)
+        {
+            if (ReferenceEquals(node.Tag, level))
+                return node;
+
+            foreach (TreeNode child in node.Nodes)
+            {
+                var found = FindNode(child, level);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
         }
 
         private TreeNode CreateTreeNode(FlexibleFolderLevel level)
@@ -306,7 +328,8 @@ namespace ShellyLoupedeckPlugin.UI
             var navButton = new FlexibleButton(levelName.Trim() + " →", newLevel);
             _selectedLevel.Buttons.Add(navButton);
 
-            LoadLevelTree();
+            // Select the new level - filling it is the natural next step
+            LoadLevelTree(newLevel);
             LoadButtons();
         }
 
