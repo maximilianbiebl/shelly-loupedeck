@@ -12,8 +12,7 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, double> _currentTemperature = new Dictionary<string, double>();
-        private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
-        private readonly object _timerLock = new object();
+        private WriteScheduler _writes;
 
         public ThermostatAdjustment() : base(false)
         {
@@ -26,6 +25,7 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
+            _writes = new WriteScheduler(nameof(ThermostatAdjustment), SendTemperatureUpdateAsync);
 
             CreateParameters();
 
@@ -35,16 +35,8 @@ namespace ShellyLoupedeckPlugin.Actions
         protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
-
-            // Dispose all timers
-            lock (_timerLock)
-            {
-                foreach (var timer in _debounceTimers.Values)
-                {
-                    timer?.Dispose();
-                }
-                _debounceTimers.Clear();
-            }
+            _writes?.Dispose();
+            _writes = null;
 
             return base.OnUnload();
         }
@@ -137,30 +129,9 @@ namespace ShellyLoupedeckPlugin.Actions
 
             AdjustmentValueChanged(actionParameter);
 
-            // Debounce the API call
-            lock (_timerLock)
-            {
-                if (_debounceTimers.ContainsKey(actionParameter))
-                {
-                    _debounceTimers[actionParameter]?.Dispose();
-                }
-
-                DebugLogger.Verbose($"  -> Starting debounce timer (200ms) for parameter: {actionParameter}");
-                _debounceTimers[actionParameter] = new Timer(async _ =>
-                {
-                    DebugLogger.Verbose($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
-                    await SendTemperatureUpdateAsync(actionParameter);
-
-                    lock (_timerLock)
-                    {
-                        if (_debounceTimers.ContainsKey(actionParameter))
-                        {
-                            _debounceTimers[actionParameter]?.Dispose();
-                            _debounceTimers.Remove(actionParameter);
-                        }
-                    }
-                }, null, 200, Timeout.Infinite);
-            }
+            // The dial updates the displayed value immediately; the cloud write is
+            // coalesced so a turn costs one request instead of one per detent
+            _writes.Schedule(actionParameter);
         }
 
         private void UpdateTemperatureValue(string deviceId, int diff)

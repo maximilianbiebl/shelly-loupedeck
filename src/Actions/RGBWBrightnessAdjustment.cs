@@ -12,10 +12,9 @@ namespace ShellyLoupedeckPlugin.Actions
     {
         private ShellyLoupedeckPlugin _plugin;
         private Dictionary<string, int> _currentBrightness = new Dictionary<string, int>();
-        private Dictionary<string, Timer> _debounceTimers = new Dictionary<string, Timer>();
         private Dictionary<string, bool> _groupOperationInProgress = new Dictionary<string, bool>();
-        private readonly object _timerLock = new object();
         private readonly object _operationLock = new object();
+        private WriteScheduler _writes;
 
         public RGBWBrightnessAdjustment() : base(false)
         {
@@ -28,6 +27,7 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             _plugin = (ShellyLoupedeckPlugin)Plugin;
             _plugin.DevicesUpdated += OnDevicesUpdated;
+            _writes = new WriteScheduler(nameof(RGBWBrightnessAdjustment), SendBrightnessUpdateAsync);
 
             CreateParameters();
 
@@ -37,16 +37,8 @@ namespace ShellyLoupedeckPlugin.Actions
         protected override bool OnUnload()
         {
             _plugin.DevicesUpdated -= OnDevicesUpdated;
-
-            // Dispose all timers
-            lock (_timerLock)
-            {
-                foreach (var timer in _debounceTimers.Values)
-                {
-                    timer?.Dispose();
-                }
-                _debounceTimers.Clear();
-            }
+            _writes?.Dispose();
+            _writes = null;
 
             return base.OnUnload();
         }
@@ -200,30 +192,9 @@ namespace ShellyLoupedeckPlugin.Actions
 
             AdjustmentValueChanged(actionParameter);
 
-            // Debounce the API call
-            lock (_timerLock)
-            {
-                if (_debounceTimers.ContainsKey(actionParameter))
-                {
-                    _debounceTimers[actionParameter]?.Dispose();
-                }
-
-                DebugLogger.Verbose($"  -> Starting debounce timer (400ms) for parameter: {actionParameter}");
-                _debounceTimers[actionParameter] = new Timer(async _ =>
-                {
-                    DebugLogger.Verbose($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
-                    await SendBrightnessUpdateAsync(actionParameter);
-
-                    lock (_timerLock)
-                    {
-                        if (_debounceTimers.ContainsKey(actionParameter))
-                        {
-                            _debounceTimers[actionParameter]?.Dispose();
-                            _debounceTimers.Remove(actionParameter);
-                        }
-                    }
-                }, null, 400, Timeout.Infinite);
-            }
+            // The dial updates the displayed value immediately; the cloud write is
+            // coalesced so a turn costs one request instead of one per detent
+            _writes.Schedule(actionParameter);
         }
 
         private void UpdateBrightnessValue(string deviceId, int diff)
