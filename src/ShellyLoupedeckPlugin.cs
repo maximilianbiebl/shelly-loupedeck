@@ -38,8 +38,13 @@ namespace ShellyLoupedeckPlugin
             _lastUserActionTime = DateTime.Now;
         }
 
+        // This plugin talks to the Shelly cloud and has no desktop application behind
+        // it. Reporting an application makes Loupedeck register it as an application
+        // profile rather than a universal plugin, which is how it surfaced from 6.4
+        // onwards - the actions then sit behind a usage profile instead of being
+        // available on any page.
         public override bool UsesApplicationApiOnly => true;
-        public override bool HasNoApplication => false;
+        public override bool HasNoApplication => true;
 
         public ShellyLoupedeckPlugin()
         {
