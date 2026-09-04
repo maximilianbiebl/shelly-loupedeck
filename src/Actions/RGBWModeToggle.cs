@@ -72,7 +72,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (string.IsNullOrEmpty(actionParameter))
             {
-                DebugLogger.Log("  -> Parameter is null or empty, returning");
+                DebugLogger.Verbose("  -> Parameter is null or empty, returning");
                 return;
             }
 
@@ -83,7 +83,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Remove mode suffix to get device/group ID
             string devicePart = actionParameter.Replace("_white", "").Replace("_color", "");
 
-            DebugLogger.Log($"  -> Setting mode to: {mode.ToUpper()}");
+            DebugLogger.Verbose($"  -> Setting mode to: {mode.ToUpper()}");
 
             // Record user action to prevent refresh conflicts
             _plugin.RecordUserAction();
@@ -95,7 +95,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     if (_groupOperationInProgress.ContainsKey(devicePart) && _groupOperationInProgress[devicePart])
                     {
-                        DebugLogger.Log($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
+                        DebugLogger.Verbose($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
                         return;
                     }
                     _groupOperationInProgress[devicePart] = true;
@@ -104,11 +104,11 @@ namespace ShellyLoupedeckPlugin.Actions
                 try
                 {
                     var groupId = devicePart.Substring(6);
-                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    DebugLogger.Verbose($"  -> Group action for group ID: {groupId}");
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     if (group != null)
                     {
-                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, setting mode sequentially");
+                        DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices, setting mode sequentially");
                         for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
                             var deviceId = group.DeviceIds[i];
@@ -121,7 +121,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             // Add 2 second delay between devices to respect rate limit (except after last device)
                             if (i < group.DeviceIds.Count - 1)
                             {
-                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                DebugLogger.Verbose($"  -> Waiting 2000ms before next device (rate limit prevention)");
                                 await Task.Delay(2000);
                             }
                         }
@@ -146,14 +146,14 @@ namespace ShellyLoupedeckPlugin.Actions
 
         private async Task SetDeviceModeAsync(string deviceId, bool setToWhite)
         {
-            DebugLogger.Log($"  -> Setting device {deviceId} to {(setToWhite ? "WHITE" : "COLOR")} mode");
+            DebugLogger.Verbose($"  -> Setting device {deviceId} to {(setToWhite ? "WHITE" : "COLOR")} mode");
 
             // Get current brightness
             int brightness = 100;
             if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
             {
                 brightness = _plugin.DeviceBrightnessCache[deviceId];
-                DebugLogger.Log($"  -> Using cached brightness: {brightness}%");
+                DebugLogger.Verbose($"  -> Using cached brightness: {brightness}%");
             }
             else
             {
@@ -161,34 +161,34 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                 {
                     brightness = device.Status.Lights[0].Brightness;
-                    DebugLogger.Log($"  -> Using device brightness: {brightness}%");
+                    DebugLogger.Verbose($"  -> Using device brightness: {brightness}%");
                 }
             }
 
             if (setToWhite)
             {
                 // Set to white mode with warm white color temperature (3000K)
-                DebugLogger.Log($"  -> Setting to WHITE mode: W=255, temp=3000K, brightness={brightness}%");
+                DebugLogger.Verbose($"  -> Setting to WHITE mode: W=255, temp=3000K, brightness={brightness}%");
                 var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, 0, 0, 0, 255, null, 3000, brightness);
 
                 if (success)
                 {
                     _plugin.DeviceColorStates[deviceId] = (0, 0, 0, 255, 3000);
                     _plugin.DeviceBrightnessCache[deviceId] = brightness;
-                    DebugLogger.Log($"  -> Updated cache for white mode");
+                    DebugLogger.Verbose($"  -> Updated cache for white mode");
                 }
             }
             else
             {
                 // Set to color mode with warm white RGB equivalent
-                DebugLogger.Log($"  -> Setting to COLOR mode: RGB=(255,180,100), brightness={brightness}%");
+                DebugLogger.Verbose($"  -> Setting to COLOR mode: RGB=(255,180,100), brightness={brightness}%");
                 var success = await _plugin.ApiClient.SetLightColorAsync(deviceId, 255, 180, 100, 0, null, null, brightness);
 
                 if (success)
                 {
                     _plugin.DeviceColorStates[deviceId] = (255, 180, 100, 0, null);
                     _plugin.DeviceBrightnessCache[deviceId] = brightness;
-                    DebugLogger.Log($"  -> Updated cache for color mode");
+                    DebugLogger.Verbose($"  -> Updated cache for color mode");
                 }
             }
         }

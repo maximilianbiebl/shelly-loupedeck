@@ -49,8 +49,16 @@ namespace ShellyLoupedeckPlugin
         public override void Load()
         {
             DebugLogger.Clear(); // Clear previous log
+
+            // Applied before anything else is written, so the setting covers the whole session
+            var verbose = GetPluginSetting("VerboseLogging", "false") == "true";
+            DebugLogger.MinimumLevel = verbose ? LogLevel.Verbose : LogLevel.Info;
+
             DebugLogger.Log("=== Plugin Load called ===");
             LogBuildIdentity();
+
+            if (verbose)
+                DebugLogger.Log("Detailed logging is enabled (Settings > Detailed logging)");
 
             // Load settings
             var serverUrl = GetPluginSetting("ServerUrl", "https://shelly-28-eu.shelly.cloud");
@@ -164,6 +172,14 @@ namespace ShellyLoupedeckPlugin
             }
         }
 
+        /// <summary>Takes effect immediately; the stored value is reapplied on the next load.</summary>
+        public void SaveVerboseLogging(bool verbose)
+        {
+            SetPluginSetting("VerboseLogging", verbose ? "true" : "false");
+            DebugLogger.MinimumLevel = verbose ? LogLevel.Verbose : LogLevel.Info;
+            DebugLogger.Log($"Detailed logging {(verbose ? "enabled" : "disabled")}");
+        }
+
         public void SaveConfiguration(string serverUrl, string authKey)
         {
             DebugLogger.Log("=== SaveConfiguration called ===");
@@ -180,11 +196,12 @@ namespace ShellyLoupedeckPlugin
 
         public async Task RefreshDevicesAsync()
         {
-            DebugLogger.Log("=== RefreshDevicesAsync called ===");
+            // This runs every five seconds, so its tracing stays verbose-only
+            DebugLogger.Verbose("=== RefreshDevicesAsync called ===");
 
             if (!_apiClient.IsConfigured)
             {
-                DebugLogger.Log("Shelly Plugin: API client not configured, skipping device refresh");
+                DebugLogger.Verbose("Shelly Plugin: API client not configured, skipping device refresh");
                 return;
             }
 
@@ -192,26 +209,26 @@ namespace ShellyLoupedeckPlugin
             var timeSinceLastAction = DateTime.Now - _lastUserActionTime;
             if (timeSinceLastAction.TotalSeconds < 2)
             {
-                DebugLogger.Log($"Shelly Plugin: Skipping refresh (user active {timeSinceLastAction.TotalMilliseconds:F0}ms ago, prevents rate limit)");
+                DebugLogger.Verbose($"Shelly Plugin: Skipping refresh (user active {timeSinceLastAction.TotalMilliseconds:F0}ms ago, prevents rate limit)");
                 return;
             }
 
             try
             {
-                DebugLogger.Log("Shelly Plugin: Starting device refresh...");
+                DebugLogger.Verbose("Shelly Plugin: Starting device refresh...");
                 _devices = await _apiClient.GetDevicesAsync();
-                DebugLogger.Log($"Shelly Plugin: Loaded {_devices.Count} devices");
+                DebugLogger.Verbose($"Shelly Plugin: Loaded {_devices.Count} devices");
 
                 // Reset error state on successful refresh
                 if (_isInErrorState)
                 {
-                    DebugLogger.Log("Shelly Plugin: Connection restored, error state cleared");
+                    DebugLogger.Log("Shelly Plugin: Connection restored");
                     _isInErrorState = false;
                     _consecutiveErrorCount = 0;
                 }
 
                 OnDevicesUpdated();
-                DebugLogger.Log("Shelly Plugin: Device refresh complete, parameters updated");
+                DebugLogger.Verbose("Shelly Plugin: Device refresh complete, parameters updated");
             }
             catch (Exception ex)
             {
@@ -220,12 +237,12 @@ namespace ShellyLoupedeckPlugin
                 // Only log detailed error info on first occurrence or every 10th consecutive error
                 if (!_isInErrorState || _consecutiveErrorCount % 10 == 0)
                 {
-                    DebugLogger.Log($"Shelly Plugin ERROR: {ex.GetType().Name}: {ex.Message}");
-                    DebugLogger.Log($"Shelly Plugin ERROR (attempt {_consecutiveErrorCount}): Check internet connection and Shelly Cloud availability");
+                    DebugLogger.Error($"{ex.GetType().Name}: {ex.Message}");
+                    DebugLogger.Error($"Device refresh failed (attempt {_consecutiveErrorCount}) - check internet connection and Shelly Cloud availability");
 
                     if (!_isInErrorState)
                     {
-                        DebugLogger.Log("Shelly Plugin: Entering error state - will retry silently until connection restored");
+                        DebugLogger.Log("Shelly Plugin: Entering error state - retrying silently until the connection returns");
                         _isInErrorState = true;
                     }
                 }

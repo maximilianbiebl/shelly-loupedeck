@@ -47,7 +47,7 @@ namespace ShellyLoupedeckPlugin.Commands
             DebugLogger.Log($"Current AuthKey length: {currentAuthKey?.Length ?? 0}");
 
             // Open settings dialog
-            var dialog = new SettingsDialog(currentServerUrl, currentAuthKey);
+            var dialog = new SettingsDialog(currentServerUrl, currentAuthKey, DebugLogger.IsVerbose);
             dialog.ShowDialog();
 
             DebugLogger.Log($"Dialog closed, SaveClicked: {dialog.SaveClicked}");
@@ -58,6 +58,7 @@ namespace ShellyLoupedeckPlugin.Commands
                 DebugLogger.Log($"Saving new ServerUrl: {dialog.ServerUrl}");
                 DebugLogger.Log($"Saving new AuthKey length: {dialog.AuthKey?.Length ?? 0}");
 
+                _plugin.SaveVerboseLogging(dialog.VerboseLogging);
                 _plugin.SaveConfiguration(dialog.ServerUrl, dialog.AuthKey);
 
                 // Show confirmation

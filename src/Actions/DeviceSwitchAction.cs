@@ -91,7 +91,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (string.IsNullOrEmpty(actionParameter))
             {
-                DebugLogger.Log("  -> Parameter is null or empty, returning");
+                DebugLogger.Verbose("  -> Parameter is null or empty, returning");
                 return;
             }
 
@@ -102,7 +102,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        DebugLogger.Verbose($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
                         return;
                     }
                     _groupOperationInProgress[actionParameter] = true;
@@ -111,11 +111,11 @@ namespace ShellyLoupedeckPlugin.Actions
                 try
                 {
                     var groupId = actionParameter.Substring(6);
-                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    DebugLogger.Verbose($"  -> Group action for group ID: {groupId}");
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     if (group != null)
                     {
-                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
                         for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
                             var deviceParam = group.DeviceIds[i];
@@ -134,7 +134,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 }
                             }
 
-                            DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
+                            DebugLogger.Verbose($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}, channel: {channel}");
 
                             // Record user action before each device to prevent refresh task collision
                             _plugin.RecordUserAction();
@@ -144,15 +144,15 @@ namespace ShellyLoupedeckPlugin.Actions
                             // Add 2 second delay between devices to respect rate limit (except after last device)
                             if (i < group.DeviceIds.Count - 1)
                             {
-                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                DebugLogger.Verbose($"  -> Waiting 2000ms before next device (rate limit prevention)");
                                 await Task.Delay(2000);
                             }
                         }
-                        DebugLogger.Log($"  -> Group operation complete, status will be refreshed by background task");
+                        DebugLogger.Verbose($"  -> Group operation complete, status will be refreshed by background task");
                     }
                     else
                     {
-                        DebugLogger.Log($"  -> Group not found!");
+                        DebugLogger.Verbose($"  -> Group not found!");
                     }
                 }
                 finally
@@ -177,37 +177,37 @@ namespace ShellyLoupedeckPlugin.Actions
                     {
                         deviceId = parts[0];
                         int.TryParse(parts[1], out channel);
-                        DebugLogger.Log($"  -> Device action for device ID: {deviceId}, channel: {channel}");
+                        DebugLogger.Verbose($"  -> Device action for device ID: {deviceId}, channel: {channel}");
                     }
                 }
                 else
                 {
-                    DebugLogger.Log($"  -> Device action for device ID: {deviceId}");
+                    DebugLogger.Verbose($"  -> Device action for device ID: {deviceId}");
                 }
 
                 await ToggleDeviceAsync(deviceId, channel, skipStatusRefresh: false);
             }
 
-            DebugLogger.Log($"  -> Calling ActionImageChanged");
+            DebugLogger.Verbose($"  -> Calling ActionImageChanged");
             ActionImageChanged(actionParameter);
         }
 
         private async Task ToggleDeviceAsync(string deviceId, int channel, bool skipStatusRefresh = false)
         {
-            DebugLogger.Log($"    -> ToggleDeviceAsync called for device: {deviceId}, channel: {channel}, skipRefresh: {skipStatusRefresh}");
+            DebugLogger.Verbose($"    -> ToggleDeviceAsync called for device: {deviceId}, channel: {channel}, skipRefresh: {skipStatusRefresh}");
 
             var device = _plugin.Devices.FirstOrDefault(d => d.Id == deviceId);
             if (device == null)
             {
-                DebugLogger.Log($"    -> ERROR: Device {deviceId} not found in plugin devices list!");
+                DebugLogger.Error($"Device {deviceId} not found in plugin devices list!");
                 return;
             }
 
-            DebugLogger.Log($"    -> Found device: {device.Name}");
+            DebugLogger.Verbose($"    -> Found device: {device.Name}");
             var deviceType = device.GetDeviceType();
             var isOn = GetDeviceState(device, channel);
-            DebugLogger.Log($"    -> Current state: {(isOn ? "ON" : "OFF")}, toggling to: {(isOn ? "OFF" : "ON")}");
-            DebugLogger.Log($"    -> Device type: {deviceType}");
+            DebugLogger.Verbose($"    -> Current state: {(isOn ? "ON" : "OFF")}, toggling to: {(isOn ? "OFF" : "ON")}");
+            DebugLogger.Verbose($"    -> Device type: {deviceType}");
 
             // Use device-specific API methods based on type
             bool success = false;
@@ -215,56 +215,56 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (deviceType == ShellyDeviceType.RGBW || deviceType == ShellyDeviceType.Dimmer)
             {
-                DebugLogger.Log($"    -> RGBW/Dimmer device: Calling SetLightStateAsync with channel={channel}...");
+                DebugLogger.Verbose($"    -> RGBW/Dimmer device: Calling SetLightStateAsync with channel={channel}...");
                 success = await _plugin.ApiClient.SetLightStateAsync(deviceId, channel, !isOn);
             }
             else if (isGen3)
             {
-                DebugLogger.Log($"    -> Gen3 device: Calling SetGen3SwitchStateAsync with channel={channel}...");
+                DebugLogger.Verbose($"    -> Gen3 device: Calling SetGen3SwitchStateAsync with channel={channel}...");
                 success = await _plugin.ApiClient.SetGen3SwitchStateAsync(deviceId, channel, !isOn);
             }
             else
             {
-                DebugLogger.Log($"    -> Standard relay device: Calling SetRelayStateAsync with channel={channel}...");
+                DebugLogger.Verbose($"    -> Standard relay device: Calling SetRelayStateAsync with channel={channel}...");
                 success = await _plugin.ApiClient.SetRelayStateAsync(deviceId, channel, !isOn);
             }
-            DebugLogger.Log($"    -> API call completed, success = {success}");
+            DebugLogger.Verbose($"    -> API call completed, success = {success}");
 
             if (!success)
             {
-                DebugLogger.Log($"    -> WARNING: API call failed for device {deviceId}!");
+                DebugLogger.Warn($"API call failed for device {deviceId}!");
             }
 
             // Skip status refresh for group operations (to prevent rate limit)
             // Background refresh task will update status anyway
             if (skipStatusRefresh)
             {
-                DebugLogger.Log($"    -> Skipping status refresh (group operation)");
+                DebugLogger.Verbose($"    -> Skipping status refresh (group operation)");
                 return;
             }
 
             // Refresh device status for single device operations
-            DebugLogger.Log($"    -> Waiting 500ms before status refresh...");
+            DebugLogger.Verbose($"    -> Waiting 500ms before status refresh...");
             await Task.Delay(500);
-            DebugLogger.Log($"    -> Getting updated device status...");
+            DebugLogger.Verbose($"    -> Getting updated device status...");
             var updatedDevice = await _plugin.ApiClient.GetDeviceStatusAsync(deviceId);
             if (updatedDevice != null)
             {
-                DebugLogger.Log($"    -> Got updated status, updating device in list");
+                DebugLogger.Verbose($"    -> Got updated status, updating device in list");
                 var index = _plugin.Devices.FindIndex(d => d.Id == deviceId);
                 if (index >= 0)
                 {
                     _plugin.Devices[index] = updatedDevice;
-                    DebugLogger.Log($"    -> Device updated at index {index}");
+                    DebugLogger.Verbose($"    -> Device updated at index {index}");
                 }
                 else
                 {
-                    DebugLogger.Log($"    -> WARNING: Could not find device index to update!");
+                    DebugLogger.Warn($"Could not find device index to update!");
                 }
             }
             else
             {
-                DebugLogger.Log($"    -> WARNING: GetDeviceStatusAsync returned null!");
+                DebugLogger.Warn($"GetDeviceStatusAsync returned null!");
             }
         }
 
@@ -274,7 +274,7 @@ namespace ShellyLoupedeckPlugin.Actions
             if (device.Switch0 != null && channel == 0)
             {
                 var isOn = device.Switch0.Output;
-                DebugLogger.Log($"      -> GetDeviceState: Using Gen3 Switch0 output = {isOn}");
+                DebugLogger.Verbose($"      -> GetDeviceState: Using Gen3 Switch0 output = {isOn}");
                 return isOn;
             }
 
@@ -282,13 +282,13 @@ namespace ShellyLoupedeckPlugin.Actions
             if (device.Status?.Relays != null && device.Status.Relays.Count > channel)
             {
                 var isOn = device.Status.Relays[channel].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using Relay[{channel}] state = {isOn}");
+                DebugLogger.Verbose($"      -> GetDeviceState: Using Relay[{channel}] state = {isOn}");
                 return isOn;
             }
             if (device.Status?.Lights != null && device.Status.Lights.Count > channel)
             {
                 var isOn = device.Status.Lights[channel].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using Light[{channel}] state = {isOn}");
+                DebugLogger.Verbose($"      -> GetDeviceState: Using Light[{channel}] state = {isOn}");
                 return isOn;
             }
 
@@ -296,17 +296,17 @@ namespace ShellyLoupedeckPlugin.Actions
             if (device.Relays != null && device.Relays.Count > channel)
             {
                 var isOn = device.Relays[channel].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using direct Relays[{channel}] field = {isOn}");
+                DebugLogger.Verbose($"      -> GetDeviceState: Using direct Relays[{channel}] field = {isOn}");
                 return isOn;
             }
             if (device.Lights != null && device.Lights.Count > channel)
             {
                 var isOn = device.Lights[channel].IsOn;
-                DebugLogger.Log($"      -> GetDeviceState: Using direct Lights[{channel}] field = {isOn}");
+                DebugLogger.Verbose($"      -> GetDeviceState: Using direct Lights[{channel}] field = {isOn}");
                 return isOn;
             }
 
-            DebugLogger.Log($"      -> GetDeviceState: No status available for channel {channel}, defaulting to false");
+            DebugLogger.Verbose($"      -> GetDeviceState: No status available for channel {channel}, defaulting to false");
             return false;
         }
 

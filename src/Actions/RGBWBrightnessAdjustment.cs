@@ -136,7 +136,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (string.IsNullOrEmpty(actionParameter))
             {
-                DebugLogger.Log("  -> Parameter is null or empty, returning");
+                DebugLogger.Verbose("  -> Parameter is null or empty, returning");
                 return;
             }
 
@@ -147,11 +147,11 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
-                DebugLogger.Log($"  -> Group adjustment for group ID: {groupId}");
+                DebugLogger.Verbose($"  -> Group adjustment for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
+                    DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices");
 
                     // For groups: sync all devices to same brightness value
                     // Use first device as reference and apply diff to it
@@ -177,7 +177,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         var oldBrightness = _currentBrightness[firstDeviceId];
                         var newBrightness = Math.Max(0, Math.Min(100, oldBrightness + diff));
 
-                        DebugLogger.Log($"  -> Group brightness: {oldBrightness}% -> {newBrightness}% (diff={diff})");
+                        DebugLogger.Verbose($"  -> Group brightness: {oldBrightness}% -> {newBrightness}% (diff={diff})");
 
                         // Set ALL devices to this new value
                         foreach (var deviceId in group.DeviceIds)
@@ -189,12 +189,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
                 else
                 {
-                    DebugLogger.Log($"  -> Group not found!");
+                    DebugLogger.Verbose($"  -> Group not found!");
                 }
             }
             else
             {
-                DebugLogger.Log($"  -> Device adjustment for device ID: {actionParameter}");
+                DebugLogger.Verbose($"  -> Device adjustment for device ID: {actionParameter}");
                 UpdateBrightnessValue(actionParameter, diff);
             }
 
@@ -208,10 +208,10 @@ namespace ShellyLoupedeckPlugin.Actions
                     _debounceTimers[actionParameter]?.Dispose();
                 }
 
-                DebugLogger.Log($"  -> Starting debounce timer (400ms) for parameter: {actionParameter}");
+                DebugLogger.Verbose($"  -> Starting debounce timer (400ms) for parameter: {actionParameter}");
                 _debounceTimers[actionParameter] = new Timer(async _ =>
                 {
-                    DebugLogger.Log($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
+                    DebugLogger.Verbose($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
                     await SendBrightnessUpdateAsync(actionParameter);
 
                     lock (_timerLock)
@@ -235,7 +235,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     _currentBrightness[deviceId] != _plugin.DeviceBrightnessCache[deviceId])
                 {
                     _currentBrightness[deviceId] = _plugin.DeviceBrightnessCache[deviceId];
-                    DebugLogger.Log($"    -> Synced brightness from cache: {_currentBrightness[deviceId]}%");
+                    DebugLogger.Verbose($"    -> Synced brightness from cache: {_currentBrightness[deviceId]}%");
                 }
             }
             else if (!_currentBrightness.ContainsKey(deviceId))
@@ -245,12 +245,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                 {
                     _currentBrightness[deviceId] = device.Status.Lights[0].Brightness;
-                    DebugLogger.Log($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
+                    DebugLogger.Verbose($"    -> Initialized brightness from device status: {_currentBrightness[deviceId]}");
                 }
                 else
                 {
                     _currentBrightness[deviceId] = 50;
-                    DebugLogger.Log($"    -> Device status not available, defaulting to 50");
+                    DebugLogger.Verbose($"    -> Device status not available, defaulting to 50");
                 }
             }
 
@@ -261,7 +261,7 @@ namespace ShellyLoupedeckPlugin.Actions
             // Also update the cache
             _plugin.DeviceBrightnessCache[deviceId] = newBrightness;
 
-            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
+            DebugLogger.Verbose($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
         }
 
         private async Task SendBrightnessUpdateAsync(string actionParameter)
@@ -273,7 +273,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        DebugLogger.Verbose($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
                         return;
                     }
                     _groupOperationInProgress[actionParameter] = true;
@@ -285,7 +285,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     if (group != null)
                     {
-                        DebugLogger.Log($"  -> Sending brightness update for group '{group.Name}' (Purpose: {group.Purpose}) with {group.DeviceIds.Count} devices");
+                        DebugLogger.Verbose($"  -> Sending brightness update for group '{group.Name}' (Purpose: {group.Purpose}) with {group.DeviceIds.Count} devices");
 
                         // For color groups, ensure all devices get the same color
                         (int R, int G, int B, int W, int? temp) groupColorState = (0, 0, 0, 0, null);
@@ -295,20 +295,20 @@ namespace ShellyLoupedeckPlugin.Actions
                             if (group.DeviceIds.Count > 0 && _plugin.DeviceColorStates.ContainsKey(group.DeviceIds[0]))
                             {
                                 groupColorState = _plugin.DeviceColorStates[group.DeviceIds[0]];
-                                DebugLogger.Log($"  -> Using color from first device: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                                DebugLogger.Verbose($"  -> Using color from first device: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
                             }
                             else
                             {
                                 // Default to warm white color
                                 groupColorState = (255, 180, 100, 0, null);
-                                DebugLogger.Log($"  -> Using default warm white color: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
+                                DebugLogger.Verbose($"  -> Using default warm white color: RGB=({groupColorState.R},{groupColorState.G},{groupColorState.B})");
                             }
                         }
 
                         for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
                             var deviceId = group.DeviceIds[i];
-                            DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+                            DebugLogger.Verbose($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
 
                             // Record user action before each device to prevent refresh task collision
                             _plugin.RecordUserAction();
@@ -324,7 +324,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             // Add 2 second delay between devices to respect rate limit (except after last device)
                             if (i < group.DeviceIds.Count - 1)
                             {
-                                DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                DebugLogger.Verbose($"  -> Waiting 2000ms before next device (rate limit prevention)");
                                 await Task.Delay(2000);
                             }
                         }
@@ -362,21 +362,21 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     // In color mode: send full RGB values + brightness parameter
                     // The Shelly API will handle the scaling internally
-                    DebugLogger.Log($"    -> Device {deviceId} in COLOR mode: Setting RGB=({colorState.R},{colorState.G},{colorState.B}) with brightness={brightness}%");
+                    DebugLogger.Verbose($"    -> Device {deviceId} in COLOR mode: Setting RGB=({colorState.R},{colorState.G},{colorState.B}) with brightness={brightness}%");
                     await _plugin.ApiClient.SetLightColorAsync(deviceId, colorState.R, colorState.G, colorState.B, 0, null, null, brightness);
                     return;
                 }
                 else
                 {
                     // In white mode: just set brightness (temperature should persist)
-                    DebugLogger.Log($"    -> Device {deviceId} in WHITE mode: Setting brightness to {brightness}%");
+                    DebugLogger.Verbose($"    -> Device {deviceId} in WHITE mode: Setting brightness to {brightness}%");
                     await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
                     return;
                 }
             }
 
             // Fallback: use simple brightness API
-            DebugLogger.Log($"    -> No color state tracked for device {deviceId}, using simple brightness API: {brightness}%");
+            DebugLogger.Verbose($"    -> No color state tracked for device {deviceId}, using simple brightness API: {brightness}%");
             await _plugin.ApiClient.SetLightBrightnessAsync(deviceId, brightness);
         }
 

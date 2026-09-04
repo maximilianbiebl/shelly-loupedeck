@@ -12,15 +12,18 @@ namespace ShellyLoupedeckPlugin.UI
         private Label serverUrlLabel;
         private Label authKeyLabel;
         private Label titleLabel;
+        private CheckBox verboseLoggingCheckBox;
 
         public string ServerUrl { get; set; }
         public string AuthKey { get; set; }
+        public bool VerboseLogging { get; set; }
         public bool SaveClicked { get; private set; }
 
-        public SettingsDialog(string currentServerUrl, string currentAuthKey)
+        public SettingsDialog(string currentServerUrl, string currentAuthKey, bool verboseLogging = false)
         {
             ServerUrl = currentServerUrl;
             AuthKey = currentAuthKey;
+            VerboseLogging = verboseLogging;
             SaveClicked = false;
 
             InitializeComponents();
@@ -31,7 +34,7 @@ namespace ShellyLoupedeckPlugin.UI
             // Form settings
             this.Text = "Shelly Cloud Settings";
             this.Width = 500;
-            this.Height = 250;
+            this.Height = 295;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -74,10 +77,19 @@ namespace ShellyLoupedeckPlugin.UI
             authKeyTextBox.UseSystemPasswordChar = false; // Show the key for easier configuration
             this.Controls.Add(authKeyTextBox);
 
+            // Verbose logging - off by default, since the device poll alone would
+            // otherwise write several thousand lines an hour
+            verboseLoggingCheckBox = new CheckBox();
+            verboseLoggingCheckBox.Text = "Detailed logging (only for troubleshooting)";
+            verboseLoggingCheckBox.Location = new System.Drawing.Point(20, 182);
+            verboseLoggingCheckBox.Size = new System.Drawing.Size(320, 24);
+            verboseLoggingCheckBox.Checked = VerboseLogging;
+            this.Controls.Add(verboseLoggingCheckBox);
+
             // Save Button
             saveButton = new Button();
             saveButton.Text = "Save";
-            saveButton.Location = new System.Drawing.Point(280, 180);
+            saveButton.Location = new System.Drawing.Point(280, 215);
             saveButton.Size = new System.Drawing.Size(85, 30);
             saveButton.Click += SaveButton_Click;
             this.Controls.Add(saveButton);
@@ -85,7 +97,7 @@ namespace ShellyLoupedeckPlugin.UI
             // Cancel Button
             cancelButton = new Button();
             cancelButton.Text = "Cancel";
-            cancelButton.Location = new System.Drawing.Point(375, 180);
+            cancelButton.Location = new System.Drawing.Point(375, 215);
             cancelButton.Size = new System.Drawing.Size(85, 30);
             cancelButton.Click += CancelButton_Click;
             this.Controls.Add(cancelButton);
@@ -95,6 +107,7 @@ namespace ShellyLoupedeckPlugin.UI
         {
             ServerUrl = serverUrlTextBox.Text.Trim();
             AuthKey = authKeyTextBox.Text.Trim();
+            VerboseLogging = verboseLoggingCheckBox.Checked;
             SaveClicked = true;
             this.Close();
         }

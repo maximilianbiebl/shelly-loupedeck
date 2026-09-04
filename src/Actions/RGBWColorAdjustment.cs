@@ -98,7 +98,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (string.IsNullOrEmpty(actionParameter))
             {
-                DebugLogger.Log("  -> Parameter is null or empty, returning");
+                DebugLogger.Verbose("  -> Parameter is null or empty, returning");
                 return;
             }
 
@@ -122,22 +122,22 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (colorKey == null)
             {
-                DebugLogger.Log($"  -> No valid color key found in parameter");
+                DebugLogger.Verbose($"  -> No valid color key found in parameter");
                 return;
             }
 
-            DebugLogger.Log($"  -> Color key: {colorKey}");
-            DebugLogger.Log($"  -> Device part: {devicePart}");
+            DebugLogger.Verbose($"  -> Color key: {colorKey}");
+            DebugLogger.Verbose($"  -> Device part: {devicePart}");
 
             var color = _presetColors[colorKey];
-            DebugLogger.Log($"  -> Color values: R={color.R}, G={color.G}, B={color.B}, W={color.W}");
+            DebugLogger.Verbose($"  -> Color values: R={color.R}, G={color.G}, B={color.B}, W={color.W}");
 
             // Get color temperature if this is a white mode
             int? temperature = null;
             if (_colorTemperatures.ContainsKey(colorKey))
             {
                 temperature = _colorTemperatures[colorKey];
-                DebugLogger.Log($"  -> Color temperature: {temperature}K");
+                DebugLogger.Verbose($"  -> Color temperature: {temperature}K");
             }
 
             if (devicePart.StartsWith("group_"))
@@ -147,7 +147,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     if (_groupOperationInProgress.ContainsKey(devicePart) && _groupOperationInProgress[devicePart])
                     {
-                        DebugLogger.Log($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
+                        DebugLogger.Verbose($"  -> Group operation already in progress for {devicePart}, skipping this request to prevent rate limit");
                         return;
                     }
                     _groupOperationInProgress[devicePart] = true;
@@ -157,15 +157,15 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     // Format: group_{groupId}
                     var groupId = devicePart.Substring(6);
-                    DebugLogger.Log($"  -> Group action for group ID: {groupId}");
+                    DebugLogger.Verbose($"  -> Group action for group ID: {groupId}");
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     if (group != null)
                     {
-                        DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
                         for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
                             var deviceId = group.DeviceIds[i];
-                            DebugLogger.Log($"    -> Group device {i+1}/{group.DeviceIds.Count}: Setting color for {deviceId}");
+                            DebugLogger.Verbose($"    -> Group device {i+1}/{group.DeviceIds.Count}: Setting color for {deviceId}");
 
                             // Record user action before each device to prevent refresh task collision
                             _plugin.RecordUserAction();
@@ -180,7 +180,7 @@ namespace ShellyLoupedeckPlugin.Actions
                             if (_plugin.DeviceBrightnessCache.ContainsKey(deviceId))
                             {
                                 brightnessToSet = _plugin.DeviceBrightnessCache[deviceId];
-                                DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
+                                DebugLogger.Verbose($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
                             }
                             else
                             {
@@ -189,11 +189,11 @@ namespace ShellyLoupedeckPlugin.Actions
                                 if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                                 {
                                     brightnessToSet = device.Status.Lights[0].Brightness;
-                                    DebugLogger.Log($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
+                                    DebugLogger.Verbose($"    -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
                                 }
                                 else
                                 {
-                                    DebugLogger.Log($"    -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
+                                    DebugLogger.Verbose($"    -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
                                 }
                             }
 
@@ -204,31 +204,31 @@ namespace ShellyLoupedeckPlugin.Actions
                             {
                                 // Store color state in plugin for brightness adjustment
                                 _plugin.DeviceColorStates[deviceId] = (color.R, color.G, color.B, color.W, temperature);
-                                DebugLogger.Log($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
+                                DebugLogger.Verbose($"    -> Stored color state for device {deviceId}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
                                 // Update brightness cache only if we set it
                                 if (brightnessToSet.HasValue)
                                 {
                                     _plugin.DeviceBrightnessCache[deviceId] = brightnessToSet.Value;
-                                    DebugLogger.Log($"    -> Updated brightness cache to {brightnessToSet.Value}%");
+                                    DebugLogger.Verbose($"    -> Updated brightness cache to {brightnessToSet.Value}%");
                                 }
                             }
                             else
                             {
-                                DebugLogger.Log($"    -> API call failed, NOT updating color state cache");
+                                DebugLogger.Verbose($"    -> API call failed, NOT updating color state cache");
                             }
 
                             // Add 2 second delay between devices to respect rate limit (except after last device)
                             if (i < group.DeviceIds.Count - 1)
                             {
-                                DebugLogger.Log($"    -> Waiting 2000ms before next device (rate limit prevention)");
+                                DebugLogger.Verbose($"    -> Waiting 2000ms before next device (rate limit prevention)");
                                 await Task.Delay(2000);
                             }
                         }
                     }
                     else
                     {
-                        DebugLogger.Log($"  -> Group not found!");
+                        DebugLogger.Verbose($"  -> Group not found!");
                     }
                 }
                 finally
@@ -243,7 +243,7 @@ namespace ShellyLoupedeckPlugin.Actions
             else
             {
                 // Format: {deviceId}
-                DebugLogger.Log($"  -> Device action for device ID: {devicePart}");
+                DebugLogger.Verbose($"  -> Device action for device ID: {devicePart}");
 
                 // Always preserve current brightness (both color and white mode)
                 int? brightnessToSet = null;
@@ -255,7 +255,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (_plugin.DeviceBrightnessCache.ContainsKey(devicePart))
                 {
                     brightnessToSet = _plugin.DeviceBrightnessCache[devicePart];
-                    DebugLogger.Log($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
+                    DebugLogger.Verbose($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from cache)");
                 }
                 else
                 {
@@ -264,11 +264,11 @@ namespace ShellyLoupedeckPlugin.Actions
                     if (device?.Status?.Lights != null && device.Status.Lights.Count > 0)
                     {
                         brightnessToSet = device.Status.Lights[0].Brightness;
-                        DebugLogger.Log($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
+                        DebugLogger.Verbose($"  -> {modeStr} mode: Setting brightness to {brightnessToSet}% (from device)");
                     }
                     else
                     {
-                        DebugLogger.Log($"  -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
+                        DebugLogger.Verbose($"  -> {modeStr} mode: No brightness info, not setting (device keeps current value)");
                     }
                 }
 
@@ -279,18 +279,18 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     // Store color state in plugin for brightness adjustment
                     _plugin.DeviceColorStates[devicePart] = (color.R, color.G, color.B, color.W, temperature);
-                    DebugLogger.Log($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
+                    DebugLogger.Verbose($"  -> Stored color state for device {devicePart}: R={color.R}, G={color.G}, B={color.B}, W={color.W}, Temp={temperature}");
 
                     // Update brightness cache only if we set it
                     if (brightnessToSet.HasValue)
                     {
                         _plugin.DeviceBrightnessCache[devicePart] = brightnessToSet.Value;
-                        DebugLogger.Log($"  -> Updated brightness cache to {brightnessToSet.Value}%");
+                        DebugLogger.Verbose($"  -> Updated brightness cache to {brightnessToSet.Value}%");
                     }
                 }
                 else
                 {
-                    DebugLogger.Log($"  -> API call failed, NOT updating color state cache");
+                    DebugLogger.Verbose($"  -> API call failed, NOT updating color state cache");
                 }
             }
         }

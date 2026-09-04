@@ -74,8 +74,8 @@ namespace ShellyLoupedeckPlugin.Api
                              (int)response.StatusCode == 429) && attempt < maxRetries)
                         {
                             var responseContent = await response.Content.ReadAsStringAsync();
-                            DebugLogger.Log($"  {operationName}: Rate limit error ({response.StatusCode}), attempt {attempt + 1}/{maxRetries + 1}. Waiting 2s and retrying...");
-                            DebugLogger.Log($"  {operationName}: Response content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
+                            DebugLogger.Warn($"{operationName}: Rate limit error ({response.StatusCode}), attempt {attempt + 1}/{maxRetries + 1}. Waiting 2s and retrying...");
+                            DebugLogger.Warn($"{operationName}: Response content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}");
 
                             attempt++;
                             await Task.Delay(2000); // Wait 2 seconds before retry
@@ -89,7 +89,7 @@ namespace ShellyLoupedeckPlugin.Api
                 {
                     if (attempt < maxRetries)
                     {
-                        DebugLogger.Log($"  {operationName}: HTTP error on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
+                        DebugLogger.Warn($"{operationName}: HTTP error on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
                         attempt++;
                         await Task.Delay(2000);
                         continue;
@@ -100,7 +100,7 @@ namespace ShellyLoupedeckPlugin.Api
                 {
                     if (attempt < maxRetries)
                     {
-                        DebugLogger.Log($"  {operationName}: Timeout on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
+                        DebugLogger.Warn($"{operationName}: Timeout on attempt {attempt + 1}/{maxRetries + 1}: {ex.Message}. Waiting 2s and retrying...");
                         attempt++;
                         await Task.Delay(2000);
                         continue;
@@ -152,13 +152,13 @@ namespace ShellyLoupedeckPlugin.Api
                             foreach (var rawDevice in rawDevices)
                             {
                                 var fields = (rawDevice.Value as JObject)?.Properties().Select(p => p.Name);
-                                DebugLogger.Log($"  RAW {rawDevice.Key}: {string.Join(", ", fields ?? Enumerable.Empty<string>())}");
+                                DebugLogger.Verbose($"  RAW {rawDevice.Key}: {string.Join(", ", fields ?? Enumerable.Empty<string>())}");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        DebugLogger.Log($"  Raw field logging failed: {ex.Message}");
+                        DebugLogger.Warn($"Raw field logging failed: {ex.Message}");
                     }
                 }
 
@@ -252,8 +252,8 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"Shelly API ERROR: {ex.GetType().Name}: {ex.Message}");
-                DebugLogger.Log($"Shelly API ERROR Stack: {ex.StackTrace}");
+                DebugLogger.Error($"{ex.GetType().Name}: {ex.Message}");
+                DebugLogger.Verbose($"Stack: {ex.StackTrace}");
                 throw; // Re-throw so caller can handle
             }
         }
@@ -421,7 +421,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetRelayStateAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetRelayStateAsync: {ex.Message}");
                 return false;
             }
         }
@@ -454,7 +454,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetGen3SwitchStateAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetGen3SwitchStateAsync: {ex.Message}");
                 return false;
             }
         }
@@ -487,7 +487,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetLightStateAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetLightStateAsync: {ex.Message}");
                 return false;
             }
         }
@@ -530,7 +530,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetLightBrightnessAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetLightBrightnessAsync: {ex.Message}");
                 return false;
             }
         }
@@ -619,7 +619,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetLightColorAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetLightColorAsync: {ex.Message}");
                 return false;
             }
         }
@@ -650,7 +650,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetThermostatTemperatureAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetThermostatTemperatureAsync: {ex.Message}");
                 return false;
             }
         }
@@ -681,7 +681,7 @@ namespace ShellyLoupedeckPlugin.Api
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"  SetThermostatBoostAsync ERROR: {ex.Message}");
+                DebugLogger.Error($"SetThermostatBoostAsync: {ex.Message}");
                 return false;
             }
         }

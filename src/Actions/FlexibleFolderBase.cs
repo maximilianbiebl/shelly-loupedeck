@@ -100,7 +100,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[{SlotName}] Refresh failed: {ex.Message}");
+                DebugLogger.Warn($"[{SlotName}] Refresh failed: {ex.Message}");
             }
         }
 
@@ -630,7 +630,7 @@ namespace ShellyLoupedeckPlugin.Actions
                     break;
 
                 default:
-                    DebugLogger.Log($"[{SlotName}] Unknown action type: {button.ActionType}");
+                    DebugLogger.Warn($"[{SlotName}] Unknown action type: {button.ActionType}");
                     break;
             }
         }
@@ -639,7 +639,7 @@ namespace ShellyLoupedeckPlugin.Actions
         {
             if (string.IsNullOrEmpty(deviceId))
             {
-                DebugLogger.Log($"[{SlotName}] Cannot open {kind} view: button has no device");
+                DebugLogger.Warn($"[{SlotName}] Cannot open {kind} view: button has no device");
                 return;
             }
 
@@ -783,7 +783,7 @@ namespace ShellyLoupedeckPlugin.Actions
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[{SlotName}] Status refresh for {deviceId} failed: {ex.Message}");
+                DebugLogger.Warn($"[{SlotName}] Status refresh for {deviceId} failed: {ex.Message}");
             }
 
             SafeRefresh();

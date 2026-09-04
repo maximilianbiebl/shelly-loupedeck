@@ -110,7 +110,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices");
+                    DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices");
 
                     // For groups: sync all devices to same brightness value
                     // Use first device as reference and apply diff to it
@@ -144,7 +144,7 @@ namespace ShellyLoupedeckPlugin.Actions
                         var oldBrightness = _currentBrightness[firstDeviceId];
                         var newBrightness = Math.Max(0, Math.Min(100, oldBrightness + diff));
 
-                        DebugLogger.Log($"  -> Group brightness: {oldBrightness}% -> {newBrightness}% (diff={diff})");
+                        DebugLogger.Verbose($"  -> Group brightness: {oldBrightness}% -> {newBrightness}% (diff={diff})");
 
                         // Set ALL devices to this new value
                         foreach (var deviceId in group.DeviceIds)
@@ -204,7 +204,7 @@ namespace ShellyLoupedeckPlugin.Actions
             var oldBrightness = _currentBrightness[deviceId];
             var newBrightness = Math.Max(0, Math.Min(100, _currentBrightness[deviceId] + diff));
             _currentBrightness[deviceId] = newBrightness;
-            DebugLogger.Log($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
+            DebugLogger.Verbose($"    -> Brightness: {oldBrightness} -> {newBrightness} (diff={diff}, step=1)");
         }
 
         private async Task SendBrightnessUpdateAsync(string actionParameter)
@@ -216,7 +216,7 @@ namespace ShellyLoupedeckPlugin.Actions
                 {
                     if (_groupOperationInProgress.ContainsKey(actionParameter) && _groupOperationInProgress[actionParameter])
                     {
-                        DebugLogger.Log($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
+                        DebugLogger.Verbose($"  -> Group operation already in progress for {actionParameter}, skipping this request to prevent rate limit");
                         return;
                     }
                     _groupOperationInProgress[actionParameter] = true;
@@ -228,13 +228,13 @@ namespace ShellyLoupedeckPlugin.Actions
                     var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                     if (group != null)
                     {
-                        DebugLogger.Log($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
+                        DebugLogger.Verbose($"  -> Sending brightness update for group with {group.DeviceIds.Count} devices, calling sequentially to avoid rate limit");
                         for (int i = 0; i < group.DeviceIds.Count; i++)
                         {
                             var deviceId = group.DeviceIds[i];
                             if (_currentBrightness.ContainsKey(deviceId))
                             {
-                                DebugLogger.Log($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
+                                DebugLogger.Verbose($"  -> Group device {i+1}/{group.DeviceIds.Count}: {deviceId}");
 
                                 // Record user action before each device to prevent refresh task collision
                                 _plugin.RecordUserAction();
@@ -244,7 +244,7 @@ namespace ShellyLoupedeckPlugin.Actions
                                 // Add 2 second delay between devices to respect rate limit (except after last device)
                                 if (i < group.DeviceIds.Count - 1)
                                 {
-                                    DebugLogger.Log($"  -> Waiting 2000ms before next device (rate limit prevention)");
+                                    DebugLogger.Verbose($"  -> Waiting 2000ms before next device (rate limit prevention)");
                                     await Task.Delay(2000);
                                 }
                             }

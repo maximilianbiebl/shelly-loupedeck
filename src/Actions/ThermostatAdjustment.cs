@@ -103,7 +103,7 @@ namespace ShellyLoupedeckPlugin.Actions
 
             if (string.IsNullOrEmpty(actionParameter))
             {
-                DebugLogger.Log("  -> Parameter is null or empty, returning");
+                DebugLogger.Verbose("  -> Parameter is null or empty, returning");
                 return;
             }
 
@@ -114,11 +114,11 @@ namespace ShellyLoupedeckPlugin.Actions
             if (actionParameter.StartsWith("group_"))
             {
                 var groupId = actionParameter.Substring(6);
-                DebugLogger.Log($"  -> Group adjustment for group ID: {groupId}");
+                DebugLogger.Verbose($"  -> Group adjustment for group ID: {groupId}");
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Found group with {group.DeviceIds.Count} devices, updating local values");
+                    DebugLogger.Verbose($"  -> Found group with {group.DeviceIds.Count} devices, updating local values");
                     foreach (var deviceId in group.DeviceIds)
                     {
                         UpdateTemperatureValue(deviceId, diff);
@@ -126,12 +126,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 }
                 else
                 {
-                    DebugLogger.Log($"  -> Group not found!");
+                    DebugLogger.Verbose($"  -> Group not found!");
                 }
             }
             else
             {
-                DebugLogger.Log($"  -> Device adjustment for device ID: {actionParameter}");
+                DebugLogger.Verbose($"  -> Device adjustment for device ID: {actionParameter}");
                 UpdateTemperatureValue(actionParameter, diff);
             }
 
@@ -145,10 +145,10 @@ namespace ShellyLoupedeckPlugin.Actions
                     _debounceTimers[actionParameter]?.Dispose();
                 }
 
-                DebugLogger.Log($"  -> Starting debounce timer (200ms) for parameter: {actionParameter}");
+                DebugLogger.Verbose($"  -> Starting debounce timer (200ms) for parameter: {actionParameter}");
                 _debounceTimers[actionParameter] = new Timer(async _ =>
                 {
-                    DebugLogger.Log($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
+                    DebugLogger.Verbose($"  -> Debounce timer elapsed, sending API call for parameter: {actionParameter}");
                     await SendTemperatureUpdateAsync(actionParameter);
 
                     lock (_timerLock)
@@ -171,12 +171,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 if (device?.Status?.Thermostats != null && device.Status.Thermostats.Count > 0)
                 {
                     _currentTemperature[deviceId] = device.Status.Thermostats[0].TargetTemperature?.Value ?? 20.0;
-                    DebugLogger.Log($"    -> Initialized temperature from device status: {_currentTemperature[deviceId]}°C");
+                    DebugLogger.Verbose($"    -> Initialized temperature from device status: {_currentTemperature[deviceId]}°C");
                 }
                 else
                 {
                     _currentTemperature[deviceId] = 20.0;
-                    DebugLogger.Log($"    -> Device status not available, defaulting to 20.0°C");
+                    DebugLogger.Verbose($"    -> Device status not available, defaulting to 20.0°C");
                 }
             }
 
@@ -184,7 +184,7 @@ namespace ShellyLoupedeckPlugin.Actions
             var newTemperature = Math.Max(5.0, Math.Min(30.0, _currentTemperature[deviceId] + (diff * 0.5)));
             _currentTemperature[deviceId] = newTemperature;
 
-            DebugLogger.Log($"    -> Temperature: {oldTemperature}°C -> {newTemperature}°C (diff={diff}, step=0.5)");
+            DebugLogger.Verbose($"    -> Temperature: {oldTemperature}°C -> {newTemperature}°C (diff={diff}, step=0.5)");
         }
 
         private async Task SendTemperatureUpdateAsync(string actionParameter)
@@ -195,12 +195,12 @@ namespace ShellyLoupedeckPlugin.Actions
                 var group = _plugin.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    DebugLogger.Log($"  -> Sending temperature update for group with {group.DeviceIds.Count} devices");
+                    DebugLogger.Verbose($"  -> Sending temperature update for group with {group.DeviceIds.Count} devices");
                     foreach (var deviceId in group.DeviceIds)
                     {
                         if (_currentTemperature.ContainsKey(deviceId))
                         {
-                            DebugLogger.Log($"    -> Setting temperature for device {deviceId} to {_currentTemperature[deviceId]}°C");
+                            DebugLogger.Verbose($"    -> Setting temperature for device {deviceId} to {_currentTemperature[deviceId]}°C");
                             await _plugin.ApiClient.SetThermostatTemperatureAsync(deviceId, _currentTemperature[deviceId]);
                         }
                     }
@@ -210,7 +210,7 @@ namespace ShellyLoupedeckPlugin.Actions
             {
                 if (_currentTemperature.ContainsKey(actionParameter))
                 {
-                    DebugLogger.Log($"  -> Setting temperature for device {actionParameter} to {_currentTemperature[actionParameter]}°C");
+                    DebugLogger.Verbose($"  -> Setting temperature for device {actionParameter} to {_currentTemperature[actionParameter]}°C");
                     await _plugin.ApiClient.SetThermostatTemperatureAsync(actionParameter, _currentTemperature[actionParameter]);
                 }
             }
