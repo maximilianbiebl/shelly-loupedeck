@@ -116,8 +116,10 @@ namespace ShellyLoupedeckPlugin.Api
 
             try
             {
-                // Step 1: Try to get device names from /device/list (optional, may not exist)
-                var deviceNames = new Dictionary<string, string>();
+                // Step 1: Get user-assigned device names from /device/list.
+                // Device ids are matched case-insensitively because all_status keys and
+                // list ids differ in casing depending on the account.
+                var deviceNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     var listUrl = $"{_serverUrl}/device/list?auth_key={_authKey}";
@@ -126,26 +128,16 @@ namespace ShellyLoupedeckPlugin.Api
                     if (listResponse.IsSuccessStatusCode)
                     {
                         var listContent = await listResponse.Content.ReadAsStringAsync();
-                        var deviceListResult = JsonConvert.DeserializeObject<DeviceListResponse>(listContent);
-
-                        if (deviceListResult?.Data?.Devices != null)
-                        {
-                            foreach (var deviceInfo in deviceListResult.Data.Devices)
-                            {
-                                if (!string.IsNullOrWhiteSpace(deviceInfo.Name))
-                                {
-                                    deviceNames[deviceInfo.Id] = deviceInfo.Name;
-                                }
-                            }
-                        }
+                        ParseDeviceNames(listContent, deviceNames);
                     }
                     else
                     {
+                        DebugLogger.Log($"Shelly API: /device/list returned {(int)listResponse.StatusCode} {listResponse.ReasonPhrase}, falling back to generated names");
                     }
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.Log($"Shelly API: /device/list not available ({ex.Message}), will use fallback names");
+                    DebugLogger.Log($"Shelly API: /device/list failed ({ex.GetType().Name}: {ex.Message}), falling back to generated names");
                 }
 
                 // Step 2: Get device statuses from /device/all_status
@@ -195,31 +187,32 @@ namespace ShellyLoupedeckPlugin.Api
                         var device = kvp.Value;
                         device.Id = kvp.Key; // Set ID from dictionary key (MAC address)
 
-                        // Use name from /device/list if available
-                        if (deviceNames.ContainsKey(device.Id))
+                        // Resolve a display name: the name the user assigned in the Shelly
+                        // app first, then the device's own settings, then a generated
+                        // "<model> (<mac suffix>)" label. Component-based devices (Gen 3/4)
+                        // report their model under "sys" rather than "getinfo", so both are
+                        // consulted before falling back to the bare MAC address.
+                        if (deviceNames.TryGetValue(device.Id, out var assignedName))
                         {
-                            device.Name = deviceNames[device.Id];
+                            device.Name = assignedName;
                         }
-                        else if (device.Settings != null && !string.IsNullOrWhiteSpace(device.Settings.Name))
+                        else if (!string.IsNullOrWhiteSpace(device.Settings?.Name))
                         {
                             device.Name = device.Settings.Name;
                         }
                         else if (string.IsNullOrWhiteSpace(device.Name))
                         {
-                            // Generate name from device type if available
-                            if (device.GetInfo?.FwInfo?.Device != null)
-                            {
-                                var deviceModelName = device.GetInfo.FwInfo.Device;
-                                var shortMac = device.Id.Length > 4 ? device.Id.Substring(device.Id.Length - 4) : device.Id;
-                                device.Name = $"{deviceModelName} ({shortMac})";
-                            }
-                            else
-                            {
-                                device.Name = device.Id;
-                            }
-                        }
-                        else
-                        {
+                            var model = device.GetInfo?.FwInfo?.Device;
+                            if (string.IsNullOrWhiteSpace(model))
+                                model = device.Sys?.Model;
+
+                            var shortMac = device.Id.Length > 4
+                                ? device.Id.Substring(device.Id.Length - 4)
+                                : device.Id;
+
+                            device.Name = string.IsNullOrWhiteSpace(model)
+                                ? device.Id
+                                : $"{model} ({shortMac})";
                         }
 
                         // Create Status object for backward compatibility
@@ -260,7 +253,7 @@ namespace ShellyLoupedeckPlugin.Api
                         if (logDeviceStructure)
                         {
                             DebugLogger.Log($"  Device: {device.Name ?? device.Id} | Type: {deviceType} | Model: {device.GetInfo?.FwInfo?.Device ?? device.Type}");
-                            DebugLogger.Log($"    Lights: {device.Lights?.Count ?? 0}, Relays: {device.Relays?.Count ?? 0}, Switch0: {device.Switch0 != null}, Light0: {device.Light0 != null}, Sys: {device.Sys != null}");
+                            DebugLogger.Log($"    Lights: {device.Lights?.Count ?? 0}, Relays: {device.Relays?.Count ?? 0}, Switch0: {device.Switch0 != null}, Light0: {device.Light0 != null}, Sys.Model: '{device.Sys?.Model}'");
                         }
                     }
 
@@ -278,6 +271,47 @@ namespace ShellyLoupedeckPlugin.Api
                 DebugLogger.Log($"Shelly API ERROR Stack: {ex.StackTrace}");
                 throw; // Re-throw so caller can handle
             }
+        }
+
+        /// <summary>
+        /// Extracts device id to user-assigned name pairs from a /device/list response.
+        /// The endpoint returns "devices" either as an object keyed by device id or as
+        /// an array of objects carrying their own id. Deserialising into a fixed shape
+        /// throws on the other one and loses every name, so both are accepted here.
+        /// </summary>
+        private static void ParseDeviceNames(string listContent, Dictionary<string, string> into)
+        {
+            var devices = JObject.Parse(listContent)["data"]?["devices"];
+
+            if (devices is JObject keyed)
+            {
+                foreach (var entry in keyed)
+                {
+                    var name = (entry.Value as JObject)?["name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                        into[entry.Key] = name.Trim();
+                }
+            }
+            else if (devices is JArray array)
+            {
+                foreach (var entry in array)
+                {
+                    if (!(entry is JObject item))
+                        continue;
+
+                    var id = item["id"]?.ToString();
+                    var name = item["name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+                        into[id] = name.Trim();
+                }
+            }
+            else
+            {
+                DebugLogger.Log("Shelly API: /device/list contained no 'devices' section");
+                return;
+            }
+
+            DebugLogger.Log($"Shelly API: /device/list supplied {into.Count} device name(s)");
         }
 
         public async Task<ShellyDevice> GetDeviceStatusAsync(string deviceId)
@@ -601,30 +635,6 @@ namespace ShellyLoupedeckPlugin.Api
                 return false;
             }
         }
-    }
-
-    public class DeviceListResponse
-    {
-        [JsonProperty("isok")]
-        public bool IsOk { get; set; }
-
-        [JsonProperty("data")]
-        public DeviceListDataSimple Data { get; set; }
-    }
-
-    public class DeviceListDataSimple
-    {
-        [JsonProperty("devices")]
-        public List<DeviceInfo> Devices { get; set; } = new List<DeviceInfo>();
-    }
-
-    public class DeviceInfo
-    {
-        [JsonProperty("id")]
-        public string Id { get; set; } = string.Empty;
-
-        [JsonProperty("name")]
-        public string Name { get; set; } = string.Empty;
     }
 
     public class AllStatusResponse
