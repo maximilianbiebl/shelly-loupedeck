@@ -12,19 +12,38 @@ Write-Host "=== Shelly Loupedeck Plugin - Build & Package ===" -ForegroundColor 
 
 # Resolve the package version.
 # Loupedeck keeps the already-installed plugin when a package does not raise its
-# version, so shipping 1.0.0 every time silently makes updates no-ops. Bump the
-# patch number on every build unless an explicit -Version is given.
+# version, so shipping the same version twice silently makes updates no-ops.
+#
+# The build number is kept OUTSIDE the source tree, in the user's profile. Taking
+# it from the manifest alone is not enough: a freshly downloaded or re-cloned
+# source tree resets the manifest to its committed value, so every build after a
+# fresh download would produce the same version as the one before it.
 $manifestPath = "LoupedeckPackage.yaml"
 $manifest = Get-Content $manifestPath -Raw
 
+if ($manifest -match '(?m)^version:\s*(\d+)\.(\d+)\.(\d+)\s*$') {
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    $manifestPatch = [int]$Matches[3]
+}
+else {
+    Write-Host "Could not read 'version:' from $manifestPath" -ForegroundColor Red
+    exit 1
+}
+
+$buildNumberFile = Join-Path $env:LOCALAPPDATA "ShellyLoupedeckPlugin\build-number.txt"
+
 if (-not $Version) {
-    if ($manifest -match '(?m)^version:\s*(\d+)\.(\d+)\.(\d+)\s*$') {
-        $Version = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+    $lastBuild = 0
+    if (Test-Path $buildNumberFile) {
+        # Cast guards against an empty file, where Get-Content yields $null
+        $stored = ([string](Get-Content $buildNumberFile -Raw)).Trim()
+        if ($stored -match '^\d+$') { $lastBuild = [int]$stored }
     }
-    else {
-        Write-Host "Could not read 'version:' from $manifestPath" -ForegroundColor Red
-        exit 1
-    }
+
+    # Whichever is further along wins, so bumping the manifest by hand still works
+    $patch = ([Math]::Max($lastBuild, $manifestPatch)) + 1
+    $Version = "$major.$minor.$patch"
 }
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
@@ -32,9 +51,20 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     exit 1
 }
 
-# Persist the new version so the next build increments from here
+# The manifest ships the version inside the package
 $manifest = $manifest -replace '(?m)^version:\s*\d+\.\d+\.\d+\s*$', "version: $Version"
 Set-Content $manifestPath -Value $manifest -NoNewline
+
+# The profile copy is what the next build increments from, and it survives a
+# fresh download of the source tree
+try {
+    $null = New-Item -ItemType Directory -Force -Path (Split-Path $buildNumberFile)
+    Set-Content $buildNumberFile -Value ($Version -split '\.')[2] -NoNewline
+}
+catch {
+    Write-Host "Warning: could not record the build number at $buildNumberFile" -ForegroundColor Yellow
+    Write-Host "  The next build may reuse this version, which Loupedeck would skip." -ForegroundColor Yellow
+}
 
 Write-Host "Package version: $Version" -ForegroundColor Cyan
 
@@ -135,5 +165,8 @@ Write-Host ""
 Write-Host "Verify the update took effect:" -ForegroundColor Yellow
 Write-Host "  Open %LocalAppData%\Loupedeck\Logs\ShellyPlugin_Debug.log" -ForegroundColor White
 Write-Host "  The first lines must read: Plugin build: version $Version.0" -ForegroundColor White
-Write-Host "  A different version means Loupedeck kept the old plugin." -ForegroundColor White
+Write-Host ""
+Write-Host "  If it reports a different version, Loupedeck kept the old plugin." -ForegroundColor White
+Write-Host "  Close Loupedeck, delete this folder, then install again:" -ForegroundColor White
+Write-Host "    %LocalAppData%\Loupedeck\Plugins\ShellyCloudControl" -ForegroundColor White
 Write-Host ""
