@@ -50,6 +50,7 @@ namespace ShellyLoupedeckPlugin
         {
             DebugLogger.Clear(); // Clear previous log
             DebugLogger.Log("=== Plugin Load called ===");
+            LogBuildIdentity();
 
             // Load settings
             var serverUrl = GetPluginSetting("ServerUrl", "https://shelly-28-eu.shelly.cloud");
@@ -133,6 +134,34 @@ namespace ShellyLoupedeckPlugin
                 _refreshTimer.Dispose();
             }
             base.Unload();
+        }
+
+        /// <summary>
+        /// Logs which build is actually running. Loupedeck keeps the previously
+        /// installed DLL when a package does not raise its version, so this is
+        /// how you confirm an update really took effect.
+        /// </summary>
+        private void LogBuildIdentity()
+        {
+            try
+            {
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                var version = assembly.GetName().Version;
+                var location = assembly.Location;
+
+                DebugLogger.Log($"Plugin build: version {version}");
+
+                if (!string.IsNullOrEmpty(location) && System.IO.File.Exists(location))
+                {
+                    var builtAt = System.IO.File.GetLastWriteTime(location);
+                    DebugLogger.Log($"Plugin build: DLL timestamp {builtAt:yyyy-MM-dd HH:mm:ss}");
+                    DebugLogger.Log($"Plugin build: loaded from {location}");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Plugin build: identity unavailable ({ex.Message})");
+            }
         }
 
         public void SaveConfiguration(string serverUrl, string authKey)

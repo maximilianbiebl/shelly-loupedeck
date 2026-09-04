@@ -2,12 +2,41 @@
 # Creates a .lplug4 package that can be installed in Loupedeck
 
 param(
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$Version
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "=== Shelly Loupedeck Plugin - Build & Package ===" -ForegroundColor Cyan
+
+# Resolve the package version.
+# Loupedeck keeps the already-installed plugin when a package does not raise its
+# version, so shipping 1.0.0 every time silently makes updates no-ops. Bump the
+# patch number on every build unless an explicit -Version is given.
+$manifestPath = "LoupedeckPackage.yaml"
+$manifest = Get-Content $manifestPath -Raw
+
+if (-not $Version) {
+    if ($manifest -match '(?m)^version:\s*(\d+)\.(\d+)\.(\d+)\s*$') {
+        $Version = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+    }
+    else {
+        Write-Host "Could not read 'version:' from $manifestPath" -ForegroundColor Red
+        exit 1
+    }
+}
+
+if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+    Write-Host "Version must look like MAJOR.MINOR.PATCH (got '$Version')" -ForegroundColor Red
+    exit 1
+}
+
+# Persist the new version so the next build increments from here
+$manifest = $manifest -replace '(?m)^version:\s*\d+\.\d+\.\d+\s*$', "version: $Version"
+Set-Content $manifestPath -Value $manifest -NoNewline
+
+Write-Host "Package version: $Version" -ForegroundColor Cyan
 
 # Clean previous builds
 if ($Clean) {
@@ -26,7 +55,12 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-dotnet build -c Release -p:Platform=x64
+# Stamp the version into the assembly so the running build is identifiable at
+# runtime (the plugin logs it on load)
+dotnet build -c Release -p:Platform=x64 `
+    -p:Version=$Version `
+    -p:AssemblyVersion="$Version.0" `
+    -p:FileVersion="$Version.0"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
@@ -90,11 +124,16 @@ Remove-Item -Recurse -Force $packageDir
 
 Write-Host ""
 Write-Host "=== Package Created Successfully! ===" -ForegroundColor Green
-Write-Host "Package: $pluginName" -ForegroundColor Cyan
+Write-Host "Package: $pluginName (version $Version)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Installation:" -ForegroundColor Yellow
 Write-Host "1. Close Loupedeck Software" -ForegroundColor White
 Write-Host "2. Double-click on $pluginName" -ForegroundColor White
 Write-Host "   OR drag & drop it into Loupedeck Software" -ForegroundColor White
 Write-Host "3. Restart Loupedeck Software" -ForegroundColor White
+Write-Host ""
+Write-Host "Verify the update took effect:" -ForegroundColor Yellow
+Write-Host "  Open %LocalAppData%\Loupedeck\Logs\ShellyPlugin_Debug.log" -ForegroundColor White
+Write-Host "  The first lines must read: Plugin build: version $Version.0" -ForegroundColor White
+Write-Host "  A different version means Loupedeck kept the old plugin." -ForegroundColor White
 Write-Host ""
